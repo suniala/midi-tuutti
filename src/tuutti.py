@@ -8,11 +8,7 @@ from mido import MidiFile
 
 DEFAULT_BPM = 120
 FILE_SINGLE_TRACK = 0
-
-
-def calc_sleep(message):
-    # TODO: calculate sleep
-    return 0.02
+MESSAGE_TEMPO = 'set_tempo'
 
 
 def player(msg_queue, abort_flag):
@@ -30,43 +26,61 @@ def player(msg_queue, abort_flag):
                 print('player: done')
                 break
 
-            sleep = calc_sleep(message)
-            print('player: sleep %.2f' % sleep)
-            time.sleep(sleep)
+            time.sleep(message.time)
 
             if not message.is_meta:
-                print('player: output')
                 output.send(message)
 
-            print('player: msg done')
             msg_queue.task_done()
 
 
-def reader(filename, pipeline):
-    print('reader: start')
+def open_file(filename):
     midi_file = MidiFile(filename)
 
     if midi_file.type != FILE_SINGLE_TRACK:
         raise Exception('Only "single track" files are supported!')
 
+    return midi_file
+
+
+def read(midi_file, pipeline):
     for message in midi_file.tracks[0]:
         pipeline.put(message)
 
-    print('reader: done')
+    print('read: done')
     pipeline.put(None)
 
 
-class TimeHandler:
-    def __init__(self) -> None:
-        super().__init__()
-        self.tempo = mido.bpm2tempo(DEFAULT_BPM)
-
+class Processor:
     def handle(self, message):
-        print('time handler: ...')
+        if message is None:
+            return message
+        else:
+            return self.handle_non_empty(message)
+
+    def handle_non_empty(self, message):
         return message
 
 
-class QueueWriter:
+class TimeHandler(Processor):
+    def __init__(self, ticks_per_beat) -> None:
+        super().__init__()
+        self.tempo = mido.bpm2tempo(DEFAULT_BPM)
+        self.ticks_per_beat = ticks_per_beat
+
+    def handle_non_empty(self, message):
+        # Calculate seconds with the current tempo value as we presumably want tempo changes
+        # to take effect only after each tempo message.
+        time_sec = mido.tick2second(message.time, self.ticks_per_beat, self.tempo)
+
+        if message.is_meta and message.type == MESSAGE_TEMPO:
+            print('got tempo: %d' % message.tempo)
+            self.tempo = message.tempo
+
+        return message.copy(time=time_sec)
+
+
+class QueueWriter(Processor):
     def __init__(self, msg_queue) -> None:
         super().__init__()
         self.msg_queue = msg_queue
@@ -94,12 +108,15 @@ def main():
     player_thread = threading.Thread(target=player, args=[msg_queue, abort_flag])
     player_thread.start()
 
-    time_handler = TimeHandler()
-    queue_writer = QueueWriter(msg_queue)
-    pipeline = Pipeline([time_handler, queue_writer])
-
     try:
-        reader(filename, pipeline)
+        midi_file = open_file(filename)
+
+        time_handler = TimeHandler(midi_file.ticks_per_beat)
+        queue_writer = QueueWriter(msg_queue)
+        pipeline = Pipeline([time_handler, queue_writer])
+
+        read(midi_file, pipeline)
+
         print('main: waiting for player to finish')
         player_thread.join()
     except KeyboardInterrupt:
