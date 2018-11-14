@@ -6,7 +6,7 @@ import time
 import mido
 from mido import MidiFile
 
-
+DEFAULT_BPM = 120
 FILE_SINGLE_TRACK = 0
 
 
@@ -42,7 +42,7 @@ def player(msg_queue, abort_flag):
             msg_queue.task_done()
 
 
-def reader(filename, msg_queue):
+def reader(filename, pipeline):
     print('reader: start')
     midi_file = MidiFile(filename)
 
@@ -50,10 +50,40 @@ def reader(filename, msg_queue):
         raise Exception('Only "single track" files are supported!')
 
     for message in midi_file.tracks[0]:
-        msg_queue.put(message)
+        pipeline.put(message)
 
     print('reader: done')
-    msg_queue.put(None)
+    pipeline.put(None)
+
+
+class TimeHandler:
+    def __init__(self) -> None:
+        super().__init__()
+        self.tempo = mido.bpm2tempo(DEFAULT_BPM)
+
+    def handle(self, message):
+        print('time handler: ...')
+        return message
+
+
+class QueueWriter:
+    def __init__(self, msg_queue) -> None:
+        super().__init__()
+        self.msg_queue = msg_queue
+
+    def handle(self, message):
+        self.msg_queue.put(message)
+        return message
+
+
+class Pipeline:
+    def __init__(self, processors) -> None:
+        super().__init__()
+        self.processors = processors
+
+    def put(self, message):
+        for processor in self.processors:
+            message = processor.handle(message)
 
 
 def main():
@@ -64,8 +94,12 @@ def main():
     player_thread = threading.Thread(target=player, args=[msg_queue, abort_flag])
     player_thread.start()
 
+    time_handler = TimeHandler()
+    queue_writer = QueueWriter(msg_queue)
+    pipeline = Pipeline([time_handler, queue_writer])
+
     try:
-        reader(filename, msg_queue)
+        reader(filename, pipeline)
         print('main: waiting for player to finish')
         player_thread.join()
     except KeyboardInterrupt:
