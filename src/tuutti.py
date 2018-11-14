@@ -7,6 +7,7 @@ import mido
 from mido import MidiFile
 
 DEFAULT_BPM = 120
+DEFAULT_TEMPO_RATIO = 1.0
 FILE_SINGLE_TRACK = 0
 MESSAGE_TEMPO = 'set_tempo'
 
@@ -62,6 +63,16 @@ class Processor:
         return message
 
 
+class TempoModifier(Processor):
+    def __init__(self, initial_ratio) -> None:
+        super().__init__()
+        self.ratio = initial_ratio
+
+    def handle_non_empty(self, message):
+        time_ticks = round(message.time * (1 / self.ratio))
+        return message.copy(time=time_ticks)
+
+
 class TimeHandler(Processor):
     def __init__(self, ticks_per_beat) -> None:
         super().__init__()
@@ -111,9 +122,10 @@ def main():
     try:
         midi_file = open_file(filename)
 
+        tempo_modifier = TempoModifier(DEFAULT_TEMPO_RATIO)
         time_handler = TimeHandler(midi_file.ticks_per_beat)
         queue_writer = QueueWriter(msg_queue)
-        pipeline = Pipeline([time_handler, queue_writer])
+        pipeline = Pipeline([tempo_modifier, time_handler, queue_writer])
 
         read(midi_file, pipeline)
 
