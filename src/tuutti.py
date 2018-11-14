@@ -7,6 +7,9 @@ import mido
 from mido import MidiFile
 
 
+FILE_SINGLE_TRACK = 0
+
+
 def calc_sleep(message):
     # TODO: calculate sleep
     return 0.02
@@ -43,7 +46,9 @@ def reader(filename, msg_queue):
     print('reader: start')
     midi_file = MidiFile(filename)
 
-    # TODO: handle multi track files properly
+    if midi_file.type != FILE_SINGLE_TRACK:
+        raise Exception('Only "single track" files are supported!')
+
     for message in midi_file.tracks[0]:
         msg_queue.put(message)
 
