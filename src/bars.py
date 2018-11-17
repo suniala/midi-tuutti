@@ -1,14 +1,22 @@
 import mido
 
 
-def extract_bars(messages):
-    return []
+def extract_bars(ticks_per_beat, messages):
+    messages_with_meta = inject_bar_meta(ticks_per_beat, messages)
 
+    def extr_rec(bars, curr_bar_messages, remaining_messages):
+        if not remaining_messages:
+            bars.append(Bar(curr_bar_messages))
+            return bars
+        elif curr_bar_messages and 'time_signature' == remaining_messages[0].type:
+            bars.append(Bar(curr_bar_messages))
+            return extr_rec(bars, [remaining_messages[0]], remaining_messages[1:])
+        else:
+            curr_bar_messages.append(remaining_messages[0])
+            return extr_rec(bars, curr_bar_messages, remaining_messages[1:])
 
-# <meta message time_signature numerator=4 denominator=4 clocks_per_click=24
-# notated_32nd_notes_per_beat=8 time=0>
+    return extr_rec([], [], messages_with_meta)
 
-# <meta message set_tempo tempo=416667 time=0>
 
 def inject_bar_meta(ticks_per_beat, messages):
     output_messages = []
@@ -53,5 +61,14 @@ class TimeSignature:
 
 
 class Bar:
-    def __init__(self) -> None:
+    def __init__(self, messages) -> None:
         super().__init__()
+        self.messages = messages
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Bar):
+            raise TypeError('can\'t compare message to {}'.format(type(other)))
+        return self.messages == other.messages
+
+    def __repr__(self) -> str:
+        return 'Bar(%s)' % self.messages
