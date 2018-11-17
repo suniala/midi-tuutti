@@ -4,18 +4,13 @@ import mido
 def extract_bars(ticks_per_beat, messages):
     messages_with_meta = inject_bar_meta(ticks_per_beat, messages)
 
-    def extr_rec(bars, curr_bar_messages, remaining_messages):
-        if not remaining_messages:
-            bars.append(Bar(curr_bar_messages))
-            return bars
-        elif curr_bar_messages and 'time_signature' == remaining_messages[0].type:
-            bars.append(Bar(curr_bar_messages))
-            return extr_rec(bars, [remaining_messages[0]], remaining_messages[1:])
-        else:
-            curr_bar_messages.append(remaining_messages[0])
-            return extr_rec(bars, curr_bar_messages, remaining_messages[1:])
+    bars = []
+    for message in messages_with_meta:
+        if 'time_signature' == message.type:
+            bars.append(Bar([]))
+        bars[-1].messages.append(message)
 
-    return extr_rec([], [], messages_with_meta)
+    return bars
 
 
 def inject_bar_meta(ticks_per_beat, messages):
@@ -71,4 +66,4 @@ class Bar:
         return self.messages == other.messages
 
     def __repr__(self) -> str:
-        return 'Bar(%s)' % self.messages
+        return 'Bar([\n%s])' % (',\n'.join(str(m) for m in self.messages))
