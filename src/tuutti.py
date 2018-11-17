@@ -40,16 +40,6 @@ class Processor:
         return message
 
 
-class TempoModifier(Processor):
-    def __init__(self, initial_ratio) -> None:
-        super().__init__()
-        self.ratio = initial_ratio
-
-    def handle_non_empty(self, message):
-        time_ticks = round(message.time * (1 / self.ratio))
-        return message.copy(time=time_ticks)
-
-
 class TimeHandler(Processor):
     def __init__(self, ticks_per_beat) -> None:
         super().__init__()
@@ -89,10 +79,11 @@ class Pipeline:
 
 
 class Player:
-    def __init__(self, msg_queue, abort_flag) -> None:
+    def __init__(self, msg_queue, abort_flag, initial_tempo_ratio) -> None:
         super().__init__()
         self.msg_queue = msg_queue
         self.abort_flag = abort_flag
+        self.initial_tempo_ratio = initial_tempo_ratio
 
     def run(self):
         port_name = None
@@ -109,7 +100,8 @@ class Player:
                     print('player: done')
                     break
 
-                time.sleep(message.time)
+                adjusted_time = message.time * (1 / self.initial_tempo_ratio)
+                time.sleep(adjusted_time)
 
                 if not message.is_meta:
                     output.send(message)
@@ -122,17 +114,16 @@ def main():
 
     msg_queue = queue.Queue()
     abort_flag = threading.Event()
-    player = Player(msg_queue, abort_flag)
+    player = Player(msg_queue, abort_flag, DEFAULT_TEMPO_RATIO)
     player_thread = threading.Thread(target=player.run)
     player_thread.start()
 
     try:
         midi_file = open_file(filename)
 
-        tempo_modifier = TempoModifier(DEFAULT_TEMPO_RATIO)
         time_handler = TimeHandler(midi_file.ticks_per_beat)
         queue_writer = QueueWriter(msg_queue)
-        pipeline = Pipeline([tempo_modifier, time_handler, queue_writer])
+        pipeline = Pipeline([time_handler, queue_writer])
 
         read(midi_file, pipeline)
 
