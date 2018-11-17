@@ -12,29 +12,6 @@ FILE_SINGLE_TRACK = 0
 MESSAGE_TEMPO = 'set_tempo'
 
 
-def player(msg_queue, abort_flag):
-    port_name = None
-
-    with mido.open_output(port_name) as output:
-        while True:
-            if abort_flag.is_set():
-                print('player: abort')
-                output.reset()
-                break
-
-            message = msg_queue.get()
-            if message is None:
-                print('player: done')
-                break
-
-            time.sleep(message.time)
-
-            if not message.is_meta:
-                output.send(message)
-
-            msg_queue.task_done()
-
-
 def open_file(filename):
     midi_file = MidiFile(filename)
 
@@ -111,12 +88,42 @@ class Pipeline:
             message = processor.handle(message)
 
 
+class Player:
+    def __init__(self, msg_queue, abort_flag) -> None:
+        super().__init__()
+        self.msg_queue = msg_queue
+        self.abort_flag = abort_flag
+
+    def run(self):
+        port_name = None
+
+        with mido.open_output(port_name) as output:
+            while True:
+                if self.abort_flag.is_set():
+                    print('player: abort')
+                    output.reset()
+                    break
+
+                message = self.msg_queue.get()
+                if message is None:
+                    print('player: done')
+                    break
+
+                time.sleep(message.time)
+
+                if not message.is_meta:
+                    output.send(message)
+
+                self.msg_queue.task_done()
+
+
 def main():
     filename = sys.argv[1]
 
     msg_queue = queue.Queue()
     abort_flag = threading.Event()
-    player_thread = threading.Thread(target=player, args=[msg_queue, abort_flag])
+    player = Player(msg_queue, abort_flag)
+    player_thread = threading.Thread(target=player.run)
     player_thread.start()
 
     try:
