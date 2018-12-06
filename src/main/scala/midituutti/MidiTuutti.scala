@@ -4,6 +4,8 @@ import java.io.File
 
 import javax.sound.midi._
 
+import scala.io.StdIn
+
 object MidiTuutti extends App {
   val filePath = if (args.length == 1) args(0) else throw new IllegalArgumentException("must give path to midi file")
 
@@ -30,6 +32,5 @@ object MidiTuutti extends App {
     receiver.send(event.getMessage, (event.getTick * tickSize * 1000 * 1000).toLong)
   }
 
-  // Sleep for a while so as to give the synthesizer a change to play something.
-  Thread.sleep(5 * 1000)
+  StdIn.readLine("Press enter to quit.")
 }
