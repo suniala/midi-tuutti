@@ -2,7 +2,7 @@ package midituutti
 
 import java.io.File
 
-import javax.sound.midi.{MidiMessage => JavaMidiMessage, MidiSystem, Receiver, Sequence}
+import javax.sound.midi.{MidiSystem, Receiver, Sequence, MidiMessage => JavaMidiMessage}
 
 /**
   * Thin Scala wrappers for the Java MidiSystem.
@@ -15,9 +15,20 @@ package object midi {
     def apply(bpm: Double): Tempo = new Tempo(bpm)
   }
 
-  class Tick(val tick: Long) extends AnyVal
+  class Tick(val tick: Long) extends AnyVal {
+    def -(other: Tick): Tick = {
+      new Tick(tick - other.tick)
+    }
 
-  class OutputTimestamp private(val micros: Long) extends AnyVal
+    override def toString: String = s"Tick($tick)"
+  }
+
+  class OutputTimestamp private(val asMicros: Long) extends AnyVal {
+    def nonNil: Boolean = asMicros > 0
+    def asMillis: Long = asMicros / 1000
+    def millisPart: Long = (asMicros / 1000.0).toLong
+    def nanosPart: Int = ((asMicros - millisPart * 1000) * 1000).intValue()
+  }
 
   object OutputTimestamp {
     def ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp = {
@@ -42,8 +53,8 @@ package object midi {
   class MidiEvent(val ticks: Tick, val message: MidiMessage)
 
   class MidiPort(private val receiver: Receiver) {
-    def send(message: MidiMessage, timestamp: OutputTimestamp): Unit = {
-      receiver.send(message.toJava, timestamp.micros)
+    def send(message: MidiMessage): Unit = {
+      receiver.send(message.toJava, -1)
     }
   }
 

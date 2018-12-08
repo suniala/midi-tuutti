@@ -1,6 +1,6 @@
 package midituutti
 
-import midituutti.midi.{OutputTimestamp, Tempo}
+import midituutti.midi.{OutputTimestamp, Tempo, Tick}
 
 import scala.io.StdIn
 
@@ -11,9 +11,18 @@ object MidiTuutti extends App {
   val midiFile = midi.openFile(filePath)
   val tempo = Tempo(120.0)
 
+  var prevTicks = new Tick(0)
   for (event <- midiFile.track) {
-    synthesizerPort.send(event.message,
-      OutputTimestamp.ofTickAndTempo(event.ticks, midiFile.resolution, tempo))
+    val ticksDelta = event.ticks - prevTicks
+    val timestampDelta = OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.resolution, tempo)
+
+    if (timestampDelta.nonNil) {
+      Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
+    }
+
+    synthesizerPort.send(event.message)
+
+    prevTicks = event.ticks
   }
 
   StdIn.readLine("Press enter to quit.")
