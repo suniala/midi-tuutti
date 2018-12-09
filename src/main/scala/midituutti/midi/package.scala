@@ -1,8 +1,12 @@
 package midituutti
 
-import java.io.File
+import java.io.{File, InputStream}
 
-import javax.sound.midi.{MidiSystem, Receiver, Sequence, MidiMessage => JavaMidiMessage}
+import javax.sound.midi.{MidiSystem, Receiver, Sequence, MetaMessage => JavaMetaMessage, MidiMessage => JavaMidiMessage}
+import midituutti.midi.MessageDecoder.{Accessors, MetaAccessor}
+import midituutti.midi.MetaType.MetaType
+
+import scala.language.implicitConversions
 
 /**
   * Thin Scala wrappers for the Java MidiSystem.
@@ -16,17 +20,30 @@ package object midi {
   }
 
   class Tick(val tick: Long) extends AnyVal {
+    def <(other: Tick): Boolean = tick < other.tick
+
     def -(other: Tick): Tick = {
       new Tick(tick - other.tick)
+    }
+
+    def +(other: Tick): Tick = {
+      new Tick(tick + other.tick)
     }
 
     override def toString: String = s"Tick($tick)"
   }
 
+  object Tick {
+    def apply(tick: Long): Tick = new Tick(tick)
+  }
+
   class OutputTimestamp private(val asMicros: Long) extends AnyVal {
     def nonNil: Boolean = asMicros > 0
+
     def asMillis: Long = asMicros / 1000
+
     def millisPart: Long = (asMicros / 1000.0).toLong
+
     def nanosPart: Int = ((asMicros - millisPart * 1000) * 1000).intValue()
   }
 
@@ -42,15 +59,48 @@ package object midi {
     }
   }
 
+  object MetaType extends Enumeration {
+
+    protected case class Val(label: String, accessor: MetaAccessor[_]) extends super.Val
+
+    implicit def valueToMetaTypeVal(x: Value): Val = x.asInstanceOf[Val]
+
+    type MetaType = Val
+
+    val TimeSignature: MetaType = Val("time-signature", Accessors.timeSignatureAccessor)
+    val NotSupported: MetaType = Val("not-supported", Accessors.noneAccessor)
+  }
+
   abstract class MidiMessage() {
     def toJava: JavaMidiMessage
+
+    def isMeta: Boolean
+
+    def metaType: Option[MetaType]
+
+    def get[T](accessor: MetaAccessor[T]): T = {
+      accessor.get(this)
+    }
+
+    override def toString: String =
+      s"MidiMessage(meta=$isMeta, metaType=$metaType, value=${metaType.map(t => get(t.accessor))}"
   }
 
   private class JavaWrapperMessage(val message: JavaMidiMessage) extends MidiMessage {
     override def toJava: JavaMidiMessage = message
+
+    override def isMeta: Boolean = message.isInstanceOf[JavaMetaMessage]
+
+    override def metaType: Option[MetaType] =
+      message match {
+        case metaMessage: JavaMetaMessage => Some(MessageDecoder.metaTypeOf(metaMessage))
+        case _ => None
+      }
   }
 
-  class MidiEvent(val ticks: Tick, val message: MidiMessage)
+  class MidiEvent(val ticks: Tick, val message: MidiMessage) {
+    override def toString: String = s"MidiEvent($ticks, $message)"
+  }
 
   class MidiPort(private val receiver: Receiver) {
     def send(message: MidiMessage): Unit = {
@@ -59,7 +109,7 @@ package object midi {
   }
 
   class MidiFile(private val seq: Sequence) {
-    def resolution: Int = seq.getResolution
+    def ticksPerBeat: Int = seq.getResolution
 
     /**
       * Note: only single track sequences are supported
@@ -71,9 +121,11 @@ package object midi {
     }
   }
 
-  def openFile(path: String): MidiFile = {
-    new MidiFile(MidiSystem.getSequence(new File(path)))
-  }
+  def openFile(path: String): MidiFile = openFile(new File(path))
+
+  def openFile(file: File): MidiFile = new MidiFile(MidiSystem.getSequence(file))
+
+  def openFile(is: InputStream): MidiFile = new MidiFile(MidiSystem.getSequence(is))
 
   def createDefaultSynthesizerPort: MidiPort = {
     val synthesizer = MidiSystem.getSynthesizer
