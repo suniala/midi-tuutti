@@ -6,6 +6,7 @@ lazy val root = (project in file(".")).
     )),
     name := "midi-tuutti",
     libraryDependencies ++= Seq(
+      "org.scalafx" %% "scalafx" % "8.0.144-R12",
       "org.scalatest" %% "scalatest" % "3.0.1" % Test,
       "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
     )
