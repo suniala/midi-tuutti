@@ -1,7 +1,8 @@
-package midituutti
+package midituutti.engine
 
 import java.io.InputStream
 
+import midituutti.midi
 import midituutti.midi.MessageDecoder.{Accessors, TimeSignature}
 import midituutti.midi.{MetaType, MidiEvent, Tick}
 import org.scalatest.matchers.{MatchResult, Matcher}

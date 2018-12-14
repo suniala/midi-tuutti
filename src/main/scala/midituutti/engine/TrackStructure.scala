@@ -1,4 +1,4 @@
-package midituutti
+package midituutti.engine
 
 import midituutti.midi.MessageDecoder.{Accessors, TimeSignature}
 import midituutti.midi._
