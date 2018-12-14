@@ -54,7 +54,7 @@ class TrackStructureSpec extends FunSpec with Matchers with MyMatchers {
       track.measures should have length expectations.length
 
       track.measures.zip(expectations.indices.zip(expectations)).foreach {
-        case (measure, (index, expected)) => {
+        case (measure, (index, expected)) =>
           withClue(s"At measure $index, ") {
             withClue("first event ") {
               measure.events.head should setTimeSignatureTo(expected.timeSignature)
@@ -64,7 +64,6 @@ class TrackStructureSpec extends FunSpec with Matchers with MyMatchers {
             }
             measure.events should have length expected.eventCount
           }
-        }
       }
     }
   }
