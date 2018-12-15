@@ -105,14 +105,18 @@ package object engine {
       }
 
       override def stop(): Unit = {
-        playing = false
-        player.interrupt()
-        reader.interrupt()
+        if (playing) {
+          playing = false
+          player.interrupt()
+          reader.interrupt()
+        }
       }
 
       override def quit(): Unit = {
+        playing = false
         running = false
-        stop()
+        reader.interrupt()
+        player.interrupt()
       }
     }
   }
