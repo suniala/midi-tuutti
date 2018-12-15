@@ -7,6 +7,8 @@ import midituutti.midi._
 package object engine {
 
   trait Engine {
+    def isPlaying: Boolean
+
     def play(): Unit
 
     def stop(): Unit
@@ -99,6 +101,8 @@ package object engine {
     reader.start()
 
     new Engine {
+      override def isPlaying: Boolean = playing
+
       override def play(): Unit = {
         playing = true
         player.play()
