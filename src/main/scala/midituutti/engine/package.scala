@@ -7,9 +7,15 @@ import midituutti.midi._
 package object engine {
 
   trait Engine {
-    def start(): Unit
+    def play(): Unit
 
     def stop(): Unit
+
+    def quit(): Unit
+  }
+
+  private abstract class Player extends Thread {
+    def play(): Unit
   }
 
   def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
@@ -20,13 +26,13 @@ package object engine {
 
     val track = TrackStructure.of(midiFile)
 
+    @volatile var running = true
     @volatile var playing = false
     val queue = new SynchronousQueue[MidiEvent]
 
     val reader: Thread = new Thread {
       override def run(): Unit = {
-        // TODO: fix the playing loop
-        while (playing) {
+        while (running) {
           try {
             for (measure <-
                    track.measures.slice(
@@ -36,7 +42,7 @@ package object engine {
               queue.put(event)
             }
           } catch {
-            case _: InterruptedException =>
+            case _: InterruptedException => // stop playing
           }
         }
 
@@ -44,44 +50,69 @@ package object engine {
       }
     }
 
-    val player: Thread = new Thread {
+    val player: Player = new Player {
+      private val playMutex = new Object()
+
+      override def play(): Unit = playMutex.synchronized {
+        playMutex.notify()
+      }
+
+      private def waitForPlay(): Unit = playMutex.synchronized {
+        playMutex.wait()
+      }
+
       override def run(): Unit = {
         var prevTicks: Option[Tick] = None
 
         try {
-          while (playing) {
-            val event = queue.take()
+          while (running) {
+            waitForPlay()
 
-            val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
-            val timestampDelta = OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, tempo)
+            try {
+              while (playing) {
+                val event = queue.take()
 
-            if (timestampDelta.nonNil) {
-              Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
+                val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
+                val timestampDelta = OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, tempo)
+
+                if (timestampDelta.nonNil) {
+                  Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
+                }
+
+                synthesizerPort.send(event.message)
+
+                prevTicks = Some(event.ticks)
+              }
+            } catch {
+              case _: InterruptedException => // stop playing
             }
-
-            synthesizerPort.send(event.message)
-
-            prevTicks = Some(event.ticks)
           }
         } catch {
-          case _: InterruptedException =>
+          case _: InterruptedException => // stop running
         }
 
         println("player done")
       }
     }
 
+    player.start()
+    reader.start()
+
     new Engine {
-      override def start(): Unit = {
+      override def play(): Unit = {
         playing = true
-        player.start()
-        reader.start()
+        player.play()
       }
 
       override def stop(): Unit = {
         playing = false
         player.interrupt()
         reader.interrupt()
+      }
+
+      override def quit(): Unit = {
+        running = false
+        stop()
       }
     }
   }

@@ -10,7 +10,11 @@ object MidiTuuttiCommand extends App {
   val endMeasure = if (args.length >= 3) Some(args(2).toInt) else None
 
   val engine = createEngine(filePath, startMeasure, endMeasure)
-  engine.start()
-  StdIn.readLine("Press enter to quit.")
+  engine.play()
+  StdIn.readLine("Press enter to stop.")
   engine.stop()
+  StdIn.readLine("Press enter to play.")
+  engine.play()
+  StdIn.readLine("Press enter to quit.")
+  engine.quit()
 }
