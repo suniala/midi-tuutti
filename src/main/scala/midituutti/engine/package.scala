@@ -2,7 +2,10 @@ package midituutti
 
 import java.util.concurrent.SynchronousQueue
 
+import midituutti.midi.MessageDecoder.Accessors
 import midituutti.midi._
+
+import scala.collection.mutable
 
 package object engine {
 
@@ -14,10 +17,12 @@ package object engine {
     def stop(): Unit
 
     def quit(): Unit
-  }
 
-  private abstract class Player extends Thread {
-    def play(): Unit
+    def mute(channel: Int): Engine
+
+    def unMute(channel: Int): Engine
+
+    def isMuted(channel: Int): Boolean
   }
 
   def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
@@ -52,15 +57,36 @@ package object engine {
       }
     }
 
-    val player: Player = new Player {
+    class MyPlayer extends Thread {
       private val playMutex = new Object()
 
-      override def play(): Unit = playMutex.synchronized {
+      private val mutedChannels = new mutable.HashSet[Int]()
+
+      def play(): Unit = playMutex.synchronized {
         playMutex.notify()
       }
 
+      def mute(channel: Int): Unit = mutedChannels.add(channel)
+
+      def unMute(channel: Int): Unit = mutedChannels.remove(channel)
+
+      def isMuted(channel: Int): Boolean = mutedChannels.contains(channel)
+
       private def waitForPlay(): Unit = playMutex.synchronized {
         playMutex.wait()
+      }
+
+      private def muteGivenChannels(mutedChannels: mutable.HashSet[Int], message: MidiMessage): MidiMessage = {
+        if (message.isNote) {
+          val note = Accessors.noteAccessor.get(message)
+          if (mutedChannels.contains(note.channel)) {
+            NoteMessage(note.copy(velocity = 0))
+          } else {
+            message
+          }
+        } else {
+          message
+        }
       }
 
       override def run(): Unit = {
@@ -81,7 +107,7 @@ package object engine {
                   Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
                 }
 
-                synthesizerPort.send(event.message)
+                synthesizerPort.send(muteGivenChannels(mutedChannels, event.message))
 
                 prevTicks = Some(event.ticks)
               }
@@ -97,6 +123,7 @@ package object engine {
       }
     }
 
+    val player = new MyPlayer
     player.start()
     reader.start()
 
@@ -122,6 +149,18 @@ package object engine {
         reader.interrupt()
         player.interrupt()
       }
+
+      override def mute(channel: Int): Engine = {
+        player.mute(channel)
+        this
+      }
+
+      override def unMute(channel: Int): Engine = {
+        player.unMute(channel)
+        this
+      }
+
+      override def isMuted(channel: Int): Boolean = player.isMuted(channel)
     }
   }
 }

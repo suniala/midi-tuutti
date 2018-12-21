@@ -1,16 +1,31 @@
 package midituutti.midi
 
-import javax.sound.midi.{MetaMessage => JavaMetaMessage}
+import javax.sound.midi.{MetaMessage => JavaMetaMessage, ShortMessage => JavaShortMessage}
+import midituutti.midi.MessageDecoder.OnOff.OnOff
 import midituutti.midi.MetaType.MetaType
 
 object MessageDecoder {
 
   case class TimeSignature(numerator: Int, denominator: Int)
 
+  object OnOff extends Enumeration {
+    type OnOff = Value
+    val On: OnOff = Value
+    val Off: OnOff = Value
+  }
+
+  case class Note(onOff: OnOff, channel: Int, note: Int, velocity: Int)
+
   trait MetaAccessor[T] {
     def get(message: MidiMessage): T = getMeta(message.toJava.asInstanceOf[JavaMetaMessage])
 
     def getMeta(message: JavaMetaMessage): T
+  }
+
+  trait ShortAccessor[T] {
+    def get(message: MidiMessage): T = getShort(message.toJava.asInstanceOf[JavaShortMessage])
+
+    def getShort(message: JavaShortMessage): T
   }
 
   /**
@@ -21,6 +36,14 @@ object MessageDecoder {
     val timeSignatureAccessor: MetaAccessor[TimeSignature] = (message: JavaMetaMessage) => {
       val abData = message.getData
       TimeSignature(abData(0) & 0xFF, 1 << (abData(1) & 0xFF))
+    }
+    val noteAccessor: ShortAccessor[Note] = (message: JavaShortMessage) => {
+      val onOff = message.getCommand match {
+        case JavaShortMessage.NOTE_ON => OnOff.On
+        case JavaShortMessage.NOTE_OFF => OnOff.Off
+        case _ => throw new IllegalArgumentException
+      }
+      Note(onOff, message.getChannel + 1, message.getData1, message.getData2)
     }
   }
 

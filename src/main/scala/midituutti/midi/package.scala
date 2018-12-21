@@ -2,10 +2,11 @@ package midituutti
 
 import java.io.{File, InputStream}
 
-import javax.sound.midi.{MidiSystem, Receiver, Sequence, MetaMessage => JavaMetaMessage, MidiMessage => JavaMidiMessage}
-import midituutti.midi.MessageDecoder.{Accessors, MetaAccessor}
+import javax.sound.midi.{MidiSystem, Receiver, Sequence, MetaMessage => JavaMetaMessage, MidiMessage => JavaMidiMessage, ShortMessage => JavaShortMessage}
+import midituutti.midi.MessageDecoder.{Accessors, MetaAccessor, Note, OnOff}
 import midituutti.midi.MetaType.MetaType
 
+import scala.annotation.varargs
 import scala.language.implicitConversions
 
 /**
@@ -76,6 +77,8 @@ package object midi {
 
     def isMeta: Boolean
 
+    def isNote: Boolean
+
     def metaType: Option[MetaType]
 
     def get[T](accessor: MetaAccessor[T]): T = {
@@ -86,10 +89,31 @@ package object midi {
       s"MidiMessage(meta=$isMeta, metaType=$metaType, value=${metaType.map(t => get(t.accessor))}"
   }
 
+  case class NoteMessage(note: Note) extends MidiMessage {
+    override def toJava: JavaMidiMessage = new JavaShortMessage(
+      note.onOff match { case OnOff.On => JavaShortMessage.NOTE_ON; case _ => JavaShortMessage.NOTE_OFF },
+      note.channel - 1,
+      note.note,
+      note.velocity
+    )
+
+    override def isMeta: Boolean = false
+
+    override def isNote: Boolean = true
+
+    override def metaType: Option[MetaType] = None
+  }
+
   private class JavaWrapperMessage(val message: JavaMidiMessage) extends MidiMessage {
     override def toJava: JavaMidiMessage = message
 
     override def isMeta: Boolean = message.isInstanceOf[JavaMetaMessage]
+
+    @varargs
+    def commandIn(jsm: JavaShortMessage, commands: Int*): Boolean = commands.contains(jsm.getCommand)
+
+    override def isNote: Boolean = message.isInstanceOf[JavaShortMessage] &&
+      commandIn(message.asInstanceOf[JavaShortMessage], JavaShortMessage.NOTE_OFF, JavaShortMessage.NOTE_ON)
 
     override def metaType: Option[MetaType] =
       message match {
