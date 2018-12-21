@@ -133,15 +133,15 @@ package object midi {
   }
 
   class MidiFile(private val seq: Sequence) {
-    if (seq.getTracks.length > 1) throw new IllegalArgumentException("multi track files are not supported yet")
-
     def ticksPerBeat: Int = seq.getResolution
 
-    def track: Seq[MidiEvent] = {
-      val track = seq.getTracks.apply(0)
-      for (eventI <- 0 until track.size)
-        yield new MidiEvent(new Tick(track.get(eventI).getTick), new JavaWrapperMessage(track.get(eventI).getMessage))
-    }
+    def events: Seq[MidiEvent] =
+      seq.getTracks
+        .flatMap(track =>
+          for (eventI <- 0 until track.size)
+            yield new MidiEvent(new Tick(track.get(eventI).getTick), new JavaWrapperMessage(track.get(eventI).getMessage)))
+        .toList
+        .sortWith({ case (a, b) => a.ticks < b.ticks })
   }
 
   def openFile(path: String): MidiFile = openFile(new File(path))

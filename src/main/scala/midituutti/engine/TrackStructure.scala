@@ -12,7 +12,7 @@ class TrackStructure(val measures: Seq[Measure])
 
 object TrackStructure {
   def of(midiFile: MidiFile): TrackStructure = {
-    val track = midiFile.track
+    val track = midiFile.events
     val timeSignatureMessage = track.find(_.message.metaType.contains(MetaType.TimeSignature)).get.message
     val measures = new Parser(midiFile.ticksPerBeat).parse(timeSignatureMessage, track)
     new TrackStructure(measures)
