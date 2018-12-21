@@ -41,8 +41,8 @@ object MessageDecoder {
       Tempo(bpm)
     }
     val timeSignatureAccessor: MetaAccessor[TimeSignature] = (message: JavaMetaMessage) => {
-      val abData = message.getData
-      TimeSignature(abData(0) & 0xFF, 1 << (abData(1) & 0xFF))
+      val data = message.getData
+      TimeSignature(data(0) & 0xFF, 1 << (data(1) & 0xFF))
     }
     val noteAccessor: ShortAccessor[Note] = (message: JavaShortMessage) => {
       val onOff = message.getCommand match {
