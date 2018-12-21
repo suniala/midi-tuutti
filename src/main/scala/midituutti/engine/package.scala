@@ -142,6 +142,7 @@ package object engine {
           playing = false
           player.interrupt()
           reader.interrupt()
+          synthesizerPort.panic()
         }
       }
 

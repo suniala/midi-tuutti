@@ -128,6 +128,13 @@ package object midi {
   }
 
   class MidiPort(private val receiver: Receiver) {
+    def panic(): Unit = {
+      val CONTROL_ALL_SOUND_OFF = 0x78
+      for (channel <- 0 until 16) {
+        receiver.send(new JavaShortMessage(JavaShortMessage.CONTROL_CHANGE | channel, CONTROL_ALL_SOUND_OFF, 0), -1)
+      }
+    }
+
     def send(message: MidiMessage): Unit = {
       receiver.send(message.toJava, -1)
     }
