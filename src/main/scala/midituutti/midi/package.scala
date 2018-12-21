@@ -109,11 +109,10 @@ package object midi {
   }
 
   class MidiFile(private val seq: Sequence) {
+    if (seq.getTracks.length > 1) throw new IllegalArgumentException("multi track files are not supported yet")
+
     def ticksPerBeat: Int = seq.getResolution
 
-    /**
-      * Note: only single track sequences are supported
-      */
     def track: Seq[MidiEvent] = {
       val track = seq.getTracks.apply(0)
       for (eventI <- 0 until track.size)
