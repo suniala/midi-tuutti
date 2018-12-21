@@ -28,9 +28,6 @@ package object engine {
   def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
     val synthesizerPort = midi.createDefaultSynthesizerPort
     val midiFile = midi.openFile(filePath)
-    // TODO: read tempo from file
-    val tempo = Tempo(120.0)
-
     val track = TrackStructure.of(midiFile)
 
     @volatile var running = true
@@ -91,6 +88,7 @@ package object engine {
 
       override def run(): Unit = {
         var prevTicks: Option[Tick] = None
+        var tempo = Tempo(120)
 
         try {
           while (running) {
@@ -107,7 +105,11 @@ package object engine {
                   Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
                 }
 
-                synthesizerPort.send(muteGivenChannels(mutedChannels, event.message))
+                if (event.message.metaType.contains(MetaType.Tempo)) {
+                  tempo = Accessors.tempoAccessor.get(event.message)
+                } else {
+                  synthesizerPort.send(muteGivenChannels(mutedChannels, event.message))
+                }
 
                 prevTicks = Some(event.ticks)
               }

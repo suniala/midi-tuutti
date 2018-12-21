@@ -68,6 +68,7 @@ package object midi {
 
     type MetaType = Val
 
+    val Tempo: MetaType = Val("tempo", Accessors.tempoAccessor)
     val TimeSignature: MetaType = Val("time-signature", Accessors.timeSignatureAccessor)
     val NotSupported: MetaType = Val("not-supported", Accessors.noneAccessor)
   }
