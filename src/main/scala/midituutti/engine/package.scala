@@ -22,6 +22,8 @@ package object engine {
   }
 
   trait Engine {
+    type TempoListener = (Tempo, Tempo) => Unit
+
     def isPlaying: Boolean
 
     def play(): Unit
@@ -35,6 +37,8 @@ package object engine {
     def unMute(channel: Int): Engine
 
     def isMuted(channel: Int): Boolean
+
+    def addTempoListener(listener: TempoListener)
   }
 
   def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
@@ -66,7 +70,11 @@ package object engine {
       }
     }
 
-    class MyPlayer extends Thread {
+    trait PlayerListener {
+      def tempoChanged(oldTempo: Tempo, newTempo: Tempo)
+    }
+
+    class MyPlayer(private val listener: PlayerListener) extends Thread {
       private val playMutex = new Object()
 
       private val mutedChannels = new mutable.HashSet[Int]()
@@ -105,7 +113,9 @@ package object engine {
                 }
 
                 if (event.message.metaType.contains(MetaType.Tempo)) {
+                  val oldTempo = tempo
                   tempo = Accessors.tempoAccessor.get(event.message)
+                  listener.tempoChanged(oldTempo, tempo)
                 } else {
                   synthesizerPort.send(muteOrPass(mutedChannels, event.message))
                 }
@@ -124,11 +134,13 @@ package object engine {
       }
     }
 
-    val player = new MyPlayer
-    player.start()
-    reader.start()
+    new Engine with PlayerListener {
+      val player = new MyPlayer(this)
+      player.start()
+      reader.start()
 
-    new Engine {
+      private val tempoListeners = new mutable.HashSet[TempoListener]()
+
       override def isPlaying: Boolean = playing
 
       override def play(): Unit = {
@@ -163,6 +175,11 @@ package object engine {
       }
 
       override def isMuted(channel: Int): Boolean = player.isMuted(channel)
+
+      override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
+
+      override def tempoChanged(oldTempo: Tempo, newTempo: Tempo): Unit =
+        tempoListeners.foreach(_.apply(oldTempo, newTempo))
     }
   }
 }
