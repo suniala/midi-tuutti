@@ -74,7 +74,10 @@ object MidiTuutti extends JFXApp {
 
   private val tempoDisplay: Label = new Label {
     private val formatted = Bindings.createStringBinding(
-      () => tempo.value.getOrElse("-").toString,
+      () => tempo.value match {
+        case Some(t: Double) => t.formatted("%.2f")
+        case _ => "-----"
+      },
       tempo
     )
     text <== formatted
