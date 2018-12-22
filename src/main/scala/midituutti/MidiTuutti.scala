@@ -80,6 +80,9 @@ object MidiTuutti extends JFXApp {
       },
       tempo
     )
+
+    minWidth = 50
+    maxWidth = 50
     text <== formatted
   }
 
@@ -94,7 +97,8 @@ object MidiTuutti extends JFXApp {
     scene = new Scene {
       onKeyPressed = keyHandler
       content = new HBox {
-        padding = Insets(20)
+        padding = Insets(10)
+        spacing = 10
         children = Seq(
           playButton,
           muteButton,
