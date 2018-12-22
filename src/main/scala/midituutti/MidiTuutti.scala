@@ -10,7 +10,7 @@ import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
 import scalafx.beans.binding.Bindings
-import scalafx.beans.property.DoubleProperty
+import scalafx.beans.property.ObjectProperty
 import scalafx.concurrent.Task
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -23,7 +23,7 @@ object MidiTuutti extends JFXApp {
   private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
   private val engine = createEngine(filePath, None, None)
   private val drumChannel = 10
-  private val tempo = new DoubleProperty(this, "tempo", 999.0)
+  private val tempo = new ObjectProperty[Option[Double]](this, "tempo", None)
 
   type EngineEvent = () => Unit
   private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
@@ -50,7 +50,7 @@ object MidiTuutti extends JFXApp {
   val engineEventBridge = new Thread(EngineEventBridge)
   engineEventBridge.start()
 
-  engine.addTempoListener((_, newValue) => engineEventQueue.add(() => tempo.setValue(newValue.bpm)))
+  engine.addTempoListener((_, newValue) => engineEventQueue.add(() => tempo.setValue(Some(newValue.bpm))))
 
   private val playButton: ToggleButton = new ToggleButton {
     text = "Play"
@@ -74,7 +74,7 @@ object MidiTuutti extends JFXApp {
 
   private val tempoDisplay: Label = new Label {
     private val formatted = Bindings.createStringBinding(
-      () => Option(tempo.value).getOrElse("").toString,
+      () => tempo.value.getOrElse("-").toString,
       tempo
     )
     text <== formatted

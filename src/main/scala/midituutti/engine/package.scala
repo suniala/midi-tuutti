@@ -22,7 +22,7 @@ package object engine {
   }
 
   trait Engine {
-    type TempoListener = (Tempo, Tempo) => Unit
+    type TempoListener = (Option[Tempo], Tempo) => Unit
 
     def isPlaying: Boolean
 
@@ -71,7 +71,7 @@ package object engine {
     }
 
     trait PlayerListener {
-      def tempoChanged(oldTempo: Tempo, newTempo: Tempo)
+      def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo)
     }
 
     class MyPlayer(private val listener: PlayerListener) extends Thread {
@@ -95,7 +95,7 @@ package object engine {
 
       override def run(): Unit = {
         var prevTicks: Option[Tick] = None
-        var tempo = Tempo(120)
+        var tempo: Option[Tempo] = None
 
         try {
           while (running) {
@@ -106,16 +106,19 @@ package object engine {
                 val event = queue.take()
 
                 val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
-                val timestampDelta = OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, tempo)
+                val timestampDelta = tempo.map(
+                  t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t))
 
-                if (timestampDelta.nonNil) {
-                  Thread.sleep(timestampDelta.millisPart, timestampDelta.nanosPart)
+                if (timestampDelta.isDefined) {
+                  if (timestampDelta.get.nonNil) {
+                    Thread.sleep(timestampDelta.get.millisPart, timestampDelta.get.nanosPart)
+                  }
                 }
 
                 if (event.message.metaType.contains(MetaType.Tempo)) {
                   val oldTempo = tempo
-                  tempo = Accessors.tempoAccessor.get(event.message)
-                  listener.tempoChanged(oldTempo, tempo)
+                  tempo = Some(Accessors.tempoAccessor.get(event.message))
+                  listener.tempoChanged(oldTempo, tempo.get)
                 } else {
                   synthesizerPort.send(muteOrPass(mutedChannels, event.message))
                 }
@@ -178,7 +181,7 @@ package object engine {
 
       override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
 
-      override def tempoChanged(oldTempo: Tempo, newTempo: Tempo): Unit =
+      override def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo): Unit =
         tempoListeners.foreach(_.apply(oldTempo, newTempo))
     }
   }
