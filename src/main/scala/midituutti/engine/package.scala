@@ -8,6 +8,18 @@ import midituutti.midi._
 import scala.collection.mutable
 
 package object engine {
+  private def muteOrPass(mutedChannels: collection.Set[Int], message: MidiMessage): MidiMessage = {
+    if (message.isNote) {
+      val note = Accessors.noteAccessor.get(message)
+      if (mutedChannels.contains(note.channel)) {
+        NoteMessage(note.copy(velocity = 0))
+      } else {
+        message
+      }
+    } else {
+      message
+    }
+  }
 
   trait Engine {
     def isPlaying: Boolean
@@ -73,19 +85,6 @@ package object engine {
         playMutex.wait()
       }
 
-      private def muteGivenChannels(mutedChannels: mutable.HashSet[Int], message: MidiMessage): MidiMessage = {
-        if (message.isNote) {
-          val note = Accessors.noteAccessor.get(message)
-          if (mutedChannels.contains(note.channel)) {
-            NoteMessage(note.copy(velocity = 0))
-          } else {
-            message
-          }
-        } else {
-          message
-        }
-      }
-
       override def run(): Unit = {
         var prevTicks: Option[Tick] = None
         var tempo = Tempo(120)
@@ -108,7 +107,7 @@ package object engine {
                 if (event.message.metaType.contains(MetaType.Tempo)) {
                   tempo = Accessors.tempoAccessor.get(event.message)
                 } else {
-                  synthesizerPort.send(muteGivenChannels(mutedChannels, event.message))
+                  synthesizerPort.send(muteOrPass(mutedChannels, event.message))
                 }
 
                 prevTicks = Some(event.ticks)
