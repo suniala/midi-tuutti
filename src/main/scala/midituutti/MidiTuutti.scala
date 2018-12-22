@@ -1,13 +1,17 @@
 package midituutti
 
+import java.util.concurrent.ConcurrentLinkedQueue
+
 import javafx.event.EventHandler
 import javafx.scene.input.KeyEvent
+import javafx.{concurrent => jfxc}
 import midituutti.engine.createEngine
 import scalafx.Includes._
-import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
+import scalafx.application.{JFXApp, Platform}
 import scalafx.beans.binding.Bindings
 import scalafx.beans.property.DoubleProperty
+import scalafx.concurrent.Task
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control.{Label, ToggleButton}
@@ -19,13 +23,34 @@ object MidiTuutti extends JFXApp {
   private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
   private val engine = createEngine(filePath, None, None)
   private val drumChannel = 10
-  private val tempo = new DoubleProperty(this, "tempo", 999.0) {
-    onChange { (_, _, newValue) => println(newValue) }
-  }
+  private val tempo = new DoubleProperty(this, "tempo", 999.0)
 
-  // FIXME: can't use background thread to modify scalafx thread state, we could use a scalafx Task for engine threads
-  // but that makes engine depend on scalafx, maybe use queues and an intermediate scalafx Task for updating props?
-  engine.addTempoListener((_, newValue) => tempo.setValue(newValue.bpm))
+  type EngineEvent = () => Unit
+  private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
+
+  /**
+    * Reads engine events from a queue and applies them in the UI thread.
+    */
+  //noinspection ConvertExpressionToSAM
+  object EngineEventBridge extends Task(new jfxc.Task[Unit] {
+    override def call(): Unit = {
+      while (!isCancelled) {
+        var getMore = true
+        while (getMore) {
+          Option(engineEventQueue.poll()) match {
+            case Some(e: EngineEvent) => Platform.runLater(() => e.apply)
+            case _ => getMore = false
+          }
+        }
+        Thread.sleep(10)
+      }
+    }
+  })
+
+  val engineEventBridge = new Thread(EngineEventBridge)
+  engineEventBridge.start()
+
+  engine.addTempoListener((_, newValue) => engineEventQueue.add(() => tempo.setValue(newValue.bpm)))
 
   private val playButton: ToggleButton = new ToggleButton {
     text = "Play"
@@ -76,5 +101,8 @@ object MidiTuutti extends JFXApp {
     }
   }
 
-  override def stopApp(): Unit = engine.quit()
+  override def stopApp(): Unit = {
+    EngineEventBridge.cancel
+    engine.quit()
+  }
 }
