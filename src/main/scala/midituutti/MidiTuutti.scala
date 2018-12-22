@@ -14,7 +14,7 @@ import scalafx.beans.property.ObjectProperty
 import scalafx.concurrent.Task
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.control.{Label, ToggleButton}
+import scalafx.scene.control.{Button, Label, ToggleButton}
 import scalafx.scene.input.KeyCode
 import scalafx.scene.layout.HBox
 
@@ -72,6 +72,22 @@ object MidiTuutti extends JFXApp {
     focusTraversable = false
   }
 
+  private val tempoMulUp: Button = new Button {
+    text = "+"
+    onAction = handle {
+      engine.updateTempoMultiplier(_ + 0.01)
+    }
+    focusTraversable = false
+  }
+
+  private val tempoMulDown: Button = new Button {
+    text = "-"
+    onAction = handle {
+      engine.updateTempoMultiplier(_ - 0.01)
+    }
+    focusTraversable = false
+  }
+
   private val tempoDisplay: Label = new Label {
     private val formatted = Bindings.createStringBinding(
       () => tempo.value match {
@@ -89,6 +105,8 @@ object MidiTuutti extends JFXApp {
   private val keyHandler: EventHandler[_ >: KeyEvent] = k => k.code match {
     case KeyCode.Space => playButton.fire()
     case KeyCode.M => muteButton.fire()
+    case KeyCode.W => tempoMulUp.fire()
+    case KeyCode.S => tempoMulDown.fire()
     case _ => // ignore
   }
 
@@ -102,7 +120,9 @@ object MidiTuutti extends JFXApp {
         children = Seq(
           playButton,
           muteButton,
-          tempoDisplay
+          tempoDisplay,
+          tempoMulUp,
+          tempoMulDown
         )
       }
     }

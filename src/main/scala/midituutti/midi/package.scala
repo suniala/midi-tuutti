@@ -14,7 +14,9 @@ import scala.language.implicitConversions
   */
 package object midi {
 
-  class Tempo(val bpm: Double) extends AnyVal
+  class Tempo(val bpm: Double) extends AnyVal {
+    def *(other: Double): Tempo = Tempo(bpm * other)
+  }
 
   object Tempo {
     def apply(bpm: Double): Tempo = new Tempo(bpm)

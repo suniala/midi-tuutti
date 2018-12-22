@@ -39,6 +39,8 @@ package object engine {
     def isMuted(channel: Int): Boolean
 
     def addTempoListener(listener: TempoListener)
+
+    def updateTempoMultiplier(f: Double => Double): Unit
   }
 
   def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
@@ -74,7 +76,7 @@ package object engine {
       def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo)
     }
 
-    class MyPlayer(private val listener: PlayerListener) extends Thread {
+    class MyPlayer(private val listener: PlayerListener, var tempoMultiplier: Double) extends Thread {
       private val playMutex = new Object()
 
       private val mutedChannels = new mutable.HashSet[Int]()
@@ -107,7 +109,7 @@ package object engine {
 
                 val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
                 val timestampDelta = tempo.map(
-                  t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t))
+                  t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t * tempoMultiplier))
 
                 if (timestampDelta.isDefined) {
                   if (timestampDelta.get.nonNil) {
@@ -138,7 +140,7 @@ package object engine {
     }
 
     new Engine with PlayerListener {
-      val player = new MyPlayer(this)
+      val player = new MyPlayer(this, 1.0)
       player.start()
       reader.start()
 
@@ -183,6 +185,10 @@ package object engine {
 
       override def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo): Unit =
         tempoListeners.foreach(_.apply(oldTempo, newTempo))
+
+      override def updateTempoMultiplier(f: Double => Double): Unit = {
+        player.tempoMultiplier = f(player.tempoMultiplier)
+      }
     }
   }
 }
