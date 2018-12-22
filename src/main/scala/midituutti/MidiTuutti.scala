@@ -88,6 +88,22 @@ object MidiTuutti extends JFXApp {
     focusTraversable = false
   }
 
+  private val prevBarButton: Button = new Button {
+    text = "<"
+    onAction = handle {
+      engine.jumpToBar(_ - 1)
+    }
+    focusTraversable = false
+  }
+
+  private val nextBarButton: Button = new Button {
+    text = ">"
+    onAction = handle {
+      engine.jumpToBar(_ + 1)
+    }
+    focusTraversable = false
+  }
+
   private val tempoDisplay: Label = new Label {
     private val formatted = Bindings.createStringBinding(
       () => tempo.value match {
@@ -107,6 +123,8 @@ object MidiTuutti extends JFXApp {
     case KeyCode.M => muteButton.fire()
     case KeyCode.W => tempoMulUp.fire()
     case KeyCode.S => tempoMulDown.fire()
+    case KeyCode.A => prevBarButton.fire()
+    case KeyCode.D => nextBarButton.fire()
     case _ => // ignore
   }
 
@@ -122,7 +140,9 @@ object MidiTuutti extends JFXApp {
           muteButton,
           tempoDisplay,
           tempoMulUp,
-          tempoMulDown
+          tempoMulDown,
+          prevBarButton,
+          nextBarButton
         )
       }
     }

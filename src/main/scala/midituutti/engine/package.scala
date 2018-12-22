@@ -41,9 +41,43 @@ package object engine {
     def addTempoListener(listener: TempoListener)
 
     def updateTempoMultiplier(f: Double => Double): Unit
+
+    def jumpToBar(f: Int => Int): Unit
   }
 
-  def createEngine(filePath: String, startMeasure: Option[Int], endMeasure: Option[Int]): Engine = {
+  private class PlaySemaphore {
+    private val waitLock = new Object()
+
+    @volatile private var playing = false
+
+    def play(): Unit = {
+      val before = playing
+      playing = true
+      if (!before) waitLock.synchronized {
+        waitLock.notify()
+      }
+    }
+
+    def stop(): Unit = {
+      playing = false
+    }
+
+    def isPlaying: Boolean = playing
+
+    def waitForPlay(): Unit = {
+      while (!playing) {
+        try {
+          waitLock.synchronized {
+            waitLock.wait()
+          }
+        } catch {
+          case _: InterruptedException => // play
+        }
+      }
+    }
+  }
+
+  def createEngine(filePath: String, initialFrom: Option[Int], initialTo: Option[Int]): Engine = {
     val synthesizerPort = midi.createDefaultSynthesizerPort
     val midiFile = midi.openFile(filePath)
     val track = TrackStructure.of(midiFile)
@@ -52,23 +86,39 @@ package object engine {
     @volatile var playing = false
     val queue = new SynchronousQueue[MidiEvent]
 
-    val reader: Thread = new Thread {
+    class Reader(val playControl: PlaySemaphore,
+                 @volatile var measureCursor: Int,
+                 @volatile var from: Int,
+                 @volatile var to: Int) extends Thread {
       override def run(): Unit = {
-        while (running) {
-          try {
-            for (measure <-
-                   track.measures.slice(
-                     startMeasure.getOrElse(1) - 1,
-                     endMeasure.getOrElse(track.measures.length));
-                 event <- measure.events) {
-              queue.put(event)
+        try {
+          while (running) {
+            playControl.waitForPlay()
+            println("reader: playing")
+
+            try {
+              while (playControl.isPlaying) {
+                val startFrom = measureCursor
+                println(s"reader: reading $startFrom - $to")
+                for (readerCursor <- startFrom to to) {
+                  println(s"reader: at $readerCursor")
+                  measureCursor = readerCursor
+                  val measure = track.measures(readerCursor - 1)
+                  for (event <- measure.events) {
+                    queue.put(event)
+                  }
+                }
+                measureCursor = from
+              }
+            } catch {
+              case _: InterruptedException => println("reader: stop playing")
             }
-          } catch {
-            case _: InterruptedException => // stop playing
           }
+        } catch {
+          case _: InterruptedException => println("reader: stop running")
         }
 
-        println("reader done")
+        println("reader: done")
       }
     }
 
@@ -76,14 +126,10 @@ package object engine {
       def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo)
     }
 
-    class MyPlayer(private val listener: PlayerListener, var tempoMultiplier: Double) extends Thread {
-      private val playMutex = new Object()
-
+    class Player(val playControl: PlaySemaphore,
+                 private val listener: PlayerListener,
+                 var tempoMultiplier: Double) extends Thread {
       private val mutedChannels = new mutable.HashSet[Int]()
-
-      def play(): Unit = playMutex.synchronized {
-        playMutex.notify()
-      }
 
       def mute(channel: Int): Unit = mutedChannels.add(channel)
 
@@ -91,20 +137,17 @@ package object engine {
 
       def isMuted(channel: Int): Boolean = mutedChannels.contains(channel)
 
-      private def waitForPlay(): Unit = playMutex.synchronized {
-        playMutex.wait()
-      }
-
       override def run(): Unit = {
-        var prevTicks: Option[Tick] = None
         var tempo: Option[Tempo] = None
 
         try {
           while (running) {
-            waitForPlay()
+            playControl.waitForPlay()
+            var prevTicks: Option[Tick] = None
+            println("player: playing")
 
             try {
-              while (playing) {
+              while (playControl.isPlaying) {
                 val event = queue.take()
 
                 val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
@@ -128,20 +171,25 @@ package object engine {
                 prevTicks = Some(event.ticks)
               }
             } catch {
-              case _: InterruptedException => // stop playing
+              case _: InterruptedException => println("player: stop playing")
             }
           }
         } catch {
-          case _: InterruptedException => // stop running
+          case _: InterruptedException => println("player: stop running")
         }
 
-        println("player done")
+        println("player: done")
       }
     }
 
     new Engine with PlayerListener {
-      val player = new MyPlayer(this, 1.0)
+      val readerControl = new PlaySemaphore
+      val playerControl = new PlaySemaphore
+
+      val player = new Player(playerControl, this, 1.0)
       player.start()
+      val reader = new Reader(readerControl, initialFrom.getOrElse(1), initialFrom.getOrElse(1),
+        initialTo.getOrElse(track.measures.length))
       reader.start()
 
       private val tempoListeners = new mutable.HashSet[TempoListener]()
@@ -150,23 +198,29 @@ package object engine {
 
       override def play(): Unit = {
         playing = true
-        player.play()
+        playerControl.play()
+        readerControl.play()
       }
 
       override def stop(): Unit = {
         if (playing) {
           playing = false
-          player.interrupt()
-          reader.interrupt()
-          synthesizerPort.panic()
+          signalStop()
         }
+      }
+
+      private def signalStop(): Unit = {
+        readerControl.stop()
+        playerControl.stop()
+        reader.interrupt()
+        player.interrupt()
+        synthesizerPort.panic()
       }
 
       override def quit(): Unit = {
         playing = false
         running = false
-        reader.interrupt()
-        player.interrupt()
+        signalStop()
       }
 
       override def mute(channel: Int): Engine = {
@@ -188,6 +242,12 @@ package object engine {
 
       override def updateTempoMultiplier(f: Double => Double): Unit = {
         player.tempoMultiplier = f(player.tempoMultiplier)
+      }
+
+      override def jumpToBar(f: Int => Int): Unit = {
+        stop()
+        reader.measureCursor = Math.min(Math.max(f(reader.measureCursor), 1), track.measures.length)
+        play()
       }
     }
   }
