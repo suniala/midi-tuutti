@@ -82,7 +82,6 @@ package object engine {
     val midiFile = midi.openFile(filePath)
     val track = TrackStructure.of(midiFile)
 
-    @volatile var running = true
     @volatile var playing = false
     val queue = new SynchronousQueue[MidiEvent]
 
@@ -90,32 +89,30 @@ package object engine {
                  @volatile var measureCursor: Int,
                  @volatile var from: Int,
                  @volatile var to: Int) extends Thread {
-      override def run(): Unit = {
-        try {
-          while (running) {
-            playControl.waitForPlay()
-            println("reader: playing")
+      setDaemon(true)
 
-            try {
-              while (playControl.isPlaying) {
-                val startFrom = measureCursor
-                println(s"reader: reading $startFrom - $to")
-                for (readerCursor <- startFrom to to) {
-                  println(s"reader: at $readerCursor")
-                  measureCursor = readerCursor
-                  val measure = track.measures(readerCursor - 1)
-                  for (event <- measure.events) {
-                    queue.put(event)
-                  }
+      override def run(): Unit = {
+        while (true) {
+          playControl.waitForPlay()
+          println("reader: playing")
+
+          try {
+            while (playControl.isPlaying) {
+              val startFrom = measureCursor
+              println(s"reader: reading $startFrom - $to")
+              for (readerCursor <- startFrom to to) {
+                println(s"reader: at $readerCursor")
+                measureCursor = readerCursor
+                val measure = track.measures(readerCursor - 1)
+                for (event <- measure.events) {
+                  queue.put(event)
                 }
-                measureCursor = from
               }
-            } catch {
-              case _: InterruptedException => println("reader: stop playing")
+              measureCursor = from
             }
+          } catch {
+            case _: InterruptedException => println("reader: stop playing")
           }
-        } catch {
-          case _: InterruptedException => println("reader: stop running")
         }
 
         println("reader: done")
@@ -129,6 +126,8 @@ package object engine {
     class Player(val playControl: PlaySemaphore,
                  private val listener: PlayerListener,
                  var tempoMultiplier: Double) extends Thread {
+      setDaemon(true)
+
       private val mutedChannels = new mutable.HashSet[Int]()
 
       def mute(channel: Int): Unit = mutedChannels.add(channel)
@@ -140,42 +139,38 @@ package object engine {
       override def run(): Unit = {
         var tempo: Option[Tempo] = None
 
-        try {
-          while (running) {
-            playControl.waitForPlay()
-            var prevTicks: Option[Tick] = None
-            println("player: playing")
+        while (true) {
+          playControl.waitForPlay()
+          var prevTicks: Option[Tick] = None
+          println("player: playing")
 
-            try {
-              while (playControl.isPlaying) {
-                val event = queue.take()
+          try {
+            while (playControl.isPlaying) {
+              val event = queue.take()
 
-                val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
-                val timestampDelta = tempo.map(
-                  t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t * tempoMultiplier))
+              val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
+              val timestampDelta = tempo.map(
+                t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t * tempoMultiplier))
 
-                if (timestampDelta.isDefined) {
-                  if (timestampDelta.get.nonNil) {
-                    Thread.sleep(timestampDelta.get.millisPart, timestampDelta.get.nanosPart)
-                  }
+              if (timestampDelta.isDefined) {
+                if (timestampDelta.get.nonNil) {
+                  Thread.sleep(timestampDelta.get.millisPart, timestampDelta.get.nanosPart)
                 }
-
-                if (event.message.metaType.contains(MetaType.Tempo)) {
-                  val oldTempo = tempo
-                  tempo = Some(Accessors.tempoAccessor.get(event.message))
-                  listener.tempoChanged(oldTempo, tempo.get)
-                } else {
-                  synthesizerPort.send(muteOrPass(mutedChannels, event.message))
-                }
-
-                prevTicks = Some(event.ticks)
               }
-            } catch {
-              case _: InterruptedException => println("player: stop playing")
+
+              if (event.message.metaType.contains(MetaType.Tempo)) {
+                val oldTempo = tempo
+                tempo = Some(Accessors.tempoAccessor.get(event.message))
+                listener.tempoChanged(oldTempo, tempo.get)
+              } else {
+                synthesizerPort.send(muteOrPass(mutedChannels, event.message))
+              }
+
+              prevTicks = Some(event.ticks)
             }
+          } catch {
+            case _: InterruptedException => println("player: stop playing")
           }
-        } catch {
-          case _: InterruptedException => println("player: stop running")
         }
 
         println("player: done")
@@ -219,7 +214,6 @@ package object engine {
 
       override def quit(): Unit = {
         playing = false
-        running = false
         signalStop()
       }
 
