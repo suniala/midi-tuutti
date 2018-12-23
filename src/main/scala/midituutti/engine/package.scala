@@ -232,13 +232,13 @@ package object engine {
         tempoListeners.foreach(_.apply(TempoEvent(player.currentTempo, player.tempoMultiplier, player.currentAdjustedTempo)))
 
       override def updateTempoMultiplier(f: Double => Double): Unit = {
-        player.tempoMultiplier = f(player.tempoMultiplier)
+        player.tempoMultiplier = math.min(math.max(f(player.tempoMultiplier), 0.1), 3.0)
         tempoChanged()
       }
 
       override def jumpToBar(f: Int => Int): Unit = {
         stop()
-        reader.measureCursor = Math.min(Math.max(f(reader.measureCursor), 1), track.measures.length)
+        reader.measureCursor = math.min(math.max(f(reader.measureCursor), 1), track.measures.length)
         play()
       }
     }

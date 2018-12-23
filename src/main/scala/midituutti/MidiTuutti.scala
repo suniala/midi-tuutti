@@ -94,6 +94,14 @@ object MidiTuutti extends JFXApp {
     focusTraversable = false
   }
 
+  private val tempoMulReset: Button = new Button {
+    text = "o"
+    onAction = handle {
+      engine.updateTempoMultiplier(_ => 1.0)
+    }
+    focusTraversable = false
+  }
+
   private val prevBarButton: Button = new Button {
     text = "<"
     onAction = handle {
@@ -132,6 +140,7 @@ object MidiTuutti extends JFXApp {
     case KeyCode.Space => playButton.fire()
     case KeyCode.M => muteButton.fire()
     case KeyCode.W => tempoMulUp.fire()
+    case KeyCode.X => tempoMulReset.fire()
     case KeyCode.S => tempoMulDown.fire()
     case KeyCode.A => prevBarButton.fire()
     case KeyCode.D => nextBarButton.fire()
