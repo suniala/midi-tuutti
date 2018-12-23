@@ -50,12 +50,10 @@ package object engine {
 
     @volatile private var playing = false
 
-    def play(): Unit = {
+    def play(): Unit = waitLock.synchronized {
       val before = playing
       playing = true
-      if (!before) waitLock.synchronized {
-        waitLock.notifyAll()
-      }
+      if (!before) waitLock.notifyAll()
     }
 
     def stop(): Unit = {
@@ -64,14 +62,12 @@ package object engine {
 
     def isPlaying: Boolean = playing
 
-    def waitForPlay(): Unit = {
+    def waitForPlay(): Unit = waitLock.synchronized {
       while (!playing) {
         try {
-          waitLock.synchronized {
-            waitLock.wait()
-          }
+          waitLock.wait()
         } catch {
-          case _: InterruptedException => // play
+          case _: InterruptedException => // ignore, probably we are quitting the app
         }
       }
     }
