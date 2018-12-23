@@ -22,7 +22,12 @@ package object engine {
   }
 
   trait Engine {
-    type TempoListener = (Option[Tempo], Tempo) => Unit
+
+    case class TempoEvent(tempo: Option[Tempo],
+                          multiplier: Double,
+                          adjustedTempo: Option[Tempo])
+
+    type TempoListener = TempoEvent => Unit
 
     def isPlaying: Boolean
 
@@ -115,7 +120,7 @@ package object engine {
     }
 
     trait PlayerListener {
-      def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo)
+      def tempoChanged(): Unit
     }
 
     class Player(val playControl: PlayControl,
@@ -125,15 +130,19 @@ package object engine {
 
       private val mutedChannels = new mutable.HashSet[Int]()
 
+      private var tempo: Option[Tempo] = None
+
       def mute(channel: Int): Unit = mutedChannels.add(channel)
 
       def unMute(channel: Int): Unit = mutedChannels.remove(channel)
 
       def isMuted(channel: Int): Boolean = mutedChannels.contains(channel)
 
-      override def run(): Unit = {
-        var tempo: Option[Tempo] = None
+      def currentTempo: Option[Tempo] = tempo
 
+      def currentAdjustedTempo: Option[Tempo] = tempo.map(_ * tempoMultiplier)
+
+      override def run(): Unit = {
         while (true) {
           playControl.waitForPlay()
           var prevTicks: Option[Tick] = None
@@ -154,9 +163,8 @@ package object engine {
               }
 
               if (event.message.metaType.contains(MetaType.Tempo)) {
-                val oldTempo = tempo
                 tempo = Some(Accessors.tempoAccessor.get(event.message))
-                listener.tempoChanged(oldTempo, tempo.get)
+                listener.tempoChanged()
               } else {
                 synthesizerPort.send(muteOrPass(mutedChannels, event.message))
               }
@@ -220,11 +228,12 @@ package object engine {
 
       override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
 
-      override def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo): Unit =
-        tempoListeners.foreach(_.apply(oldTempo, newTempo))
+      override def tempoChanged(): Unit =
+        tempoListeners.foreach(_.apply(TempoEvent(player.currentTempo, player.tempoMultiplier, player.currentAdjustedTempo)))
 
       override def updateTempoMultiplier(f: Double => Double): Unit = {
         player.tempoMultiplier = f(player.tempoMultiplier)
+        tempoChanged()
       }
 
       override def jumpToBar(f: Int => Int): Unit = {

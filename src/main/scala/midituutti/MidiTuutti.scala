@@ -16,14 +16,16 @@ import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control.{Button, Label, ToggleButton}
 import scalafx.scene.input.KeyCode
-import scalafx.scene.layout.HBox
+import scalafx.scene.layout.{HBox, VBox}
 
 object MidiTuutti extends JFXApp {
   private val args = parameters.unnamed
   private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
   private val engine = createEngine(filePath, None, None)
   private val drumChannel = 10
-  private val tempo = new ObjectProperty[Option[Double]](this, "tempo", None)
+  private val songTempo = new ObjectProperty[Option[Double]](this, "songTempo", None)
+  private val tempoMultiplier = new ObjectProperty[Option[Double]](this, "tempoMultiplier", Some(1.0))
+  private val adjustedTempo = new ObjectProperty[Option[Double]](this, "adjustedTempo", None)
 
   type EngineEvent = () => Unit
   private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
@@ -50,7 +52,11 @@ object MidiTuutti extends JFXApp {
   val engineEventBridge = new Thread(EngineEventBridge)
   engineEventBridge.start()
 
-  engine.addTempoListener((_, newValue) => engineEventQueue.add(() => tempo.setValue(Some(newValue.bpm))))
+  engine.addTempoListener(event => engineEventQueue.add(() => {
+    songTempo.setValue(event.tempo.map(_.bpm))
+    tempoMultiplier.setValue(Some(event.multiplier))
+    adjustedTempo.setValue(event.adjustedTempo.map(_.bpm))
+  }))
 
   private val playButton: ToggleButton = new ToggleButton {
     text = "Play"
@@ -104,13 +110,41 @@ object MidiTuutti extends JFXApp {
     focusTraversable = false
   }
 
-  private val tempoDisplay: Label = new Label {
+  private val songTempoLabel: Label = new Label {
     private val formatted = Bindings.createStringBinding(
-      () => tempo.value match {
+      () => songTempo.value match {
         case Some(t: Double) => t.formatted("%.2f")
         case _ => "-----"
       },
-      tempo
+      songTempo
+    )
+
+    minWidth = 50
+    maxWidth = 50
+    text <== formatted
+  }
+
+  private val tempoMultiplierLabel: Label = new Label {
+    private val formatted = Bindings.createStringBinding(
+      () => tempoMultiplier.value match {
+        case Some(t: Double) => t.formatted("%.2f")
+        case _ => "-----"
+      },
+      tempoMultiplier
+    )
+
+    minWidth = 50
+    maxWidth = 50
+    text <== formatted
+  }
+
+  private val adjustedTempoLabel: Label = new Label {
+    private val formatted = Bindings.createStringBinding(
+      () => adjustedTempo.value match {
+        case Some(t: Double) => t.formatted("%.2f")
+        case _ => "-----"
+      },
+      adjustedTempo
     )
 
     minWidth = 50
@@ -132,17 +166,39 @@ object MidiTuutti extends JFXApp {
     title = "MidiTuutti"
     scene = new Scene {
       onKeyPressed = keyHandler
-      content = new HBox {
+      content = new VBox {
         padding = Insets(10)
         spacing = 10
         children = Seq(
-          playButton,
-          muteButton,
-          tempoDisplay,
-          tempoMulUp,
-          tempoMulDown,
-          prevBarButton,
-          nextBarButton
+          new HBox {
+            spacing = 10
+            children = Seq(
+              playButton,
+              muteButton,
+              tempoMulUp,
+              tempoMulDown,
+              prevBarButton,
+              nextBarButton
+            )
+          },
+          new HBox {
+            children = Seq(
+              new Label("Song tempo: "),
+              songTempoLabel
+            )
+          },
+          new HBox {
+            children = Seq(
+              new Label("Tempo multiplier: "),
+              tempoMultiplierLabel
+            )
+          },
+          new HBox {
+            children = Seq(
+              new Label("Adjusted tempo: "),
+              adjustedTempoLabel
+            )
+          }
         )
       }
     }
