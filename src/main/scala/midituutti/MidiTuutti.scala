@@ -10,7 +10,7 @@ import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
 import scalafx.beans.binding.Bindings
-import scalafx.beans.property.ObjectProperty
+import scalafx.beans.property.{ObjectProperty, ReadOnlyProperty}
 import scalafx.concurrent.Task
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -110,13 +110,13 @@ object MidiTuutti extends JFXApp {
     focusTraversable = false
   }
 
-  private val songTempoLabel: Label = new Label {
+  class TempoLabel(val property: ReadOnlyProperty[Option[Double], Option[Double]]) extends Label {
     private val formatted = Bindings.createStringBinding(
-      () => songTempo.value match {
+      () => property.value match {
         case Some(t: Double) => t.formatted("%.2f")
         case _ => "-----"
       },
-      songTempo
+      property
     )
 
     minWidth = 50
@@ -124,33 +124,9 @@ object MidiTuutti extends JFXApp {
     text <== formatted
   }
 
-  private val tempoMultiplierLabel: Label = new Label {
-    private val formatted = Bindings.createStringBinding(
-      () => tempoMultiplier.value match {
-        case Some(t: Double) => t.formatted("%.2f")
-        case _ => "-----"
-      },
-      tempoMultiplier
-    )
-
-    minWidth = 50
-    maxWidth = 50
-    text <== formatted
-  }
-
-  private val adjustedTempoLabel: Label = new Label {
-    private val formatted = Bindings.createStringBinding(
-      () => adjustedTempo.value match {
-        case Some(t: Double) => t.formatted("%.2f")
-        case _ => "-----"
-      },
-      adjustedTempo
-    )
-
-    minWidth = 50
-    maxWidth = 50
-    text <== formatted
-  }
+  private val songTempoLabel = new TempoLabel(songTempo)
+  private val tempoMultiplierLabel = new TempoLabel(tempoMultiplier)
+  private val adjustedTempoLabel = new TempoLabel(adjustedTempo)
 
   private val keyHandler: EventHandler[_ >: KeyEvent] = k => k.code match {
     case KeyCode.Space => playButton.fire()
