@@ -45,7 +45,7 @@ package object engine {
     def jumpToBar(f: Int => Int): Unit
   }
 
-  private class PlaySemaphore {
+  private class PlayControl {
     private val waitLock = new Object()
 
     @volatile private var playing = false
@@ -84,7 +84,7 @@ package object engine {
 
     val queue = new SynchronousQueue[MidiEvent]
 
-    class Reader(val playControl: PlaySemaphore,
+    class Reader(val playControl: PlayControl,
                  @volatile var measureCursor: Int,
                  @volatile var from: Int,
                  @volatile var to: Int) extends Thread {
@@ -122,7 +122,7 @@ package object engine {
       def tempoChanged(oldTempo: Option[Tempo], newTempo: Tempo)
     }
 
-    class Player(val playControl: PlaySemaphore,
+    class Player(val playControl: PlayControl,
                  private val listener: PlayerListener,
                  var tempoMultiplier: Double) extends Thread {
       setDaemon(true)
@@ -177,8 +177,8 @@ package object engine {
     }
 
     new Engine with PlayerListener {
-      val readerControl = new PlaySemaphore
-      val playerControl = new PlaySemaphore
+      val readerControl = new PlayControl
+      val playerControl = new PlayControl
 
       val player = new Player(playerControl, this, 1.0)
       player.start()
