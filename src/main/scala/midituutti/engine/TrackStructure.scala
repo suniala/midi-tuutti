@@ -6,7 +6,7 @@ import midituutti.midi._
 import scala.annotation.tailrec
 import scala.collection.immutable
 
-class Measure(val events: Seq[MidiEvent])
+class Measure(val timeSignature: TimeSignature, val events: Seq[MidiEvent])
 
 class TrackStructure(val measures: Seq[Measure])
 
@@ -31,13 +31,6 @@ object TrackStructure {
       delta < measureTicks(ticksPerBeat, timeSignatureMessage.get(Accessors.timeSignatureAccessor))
     }
 
-    private def timeSignatureEvent(eventTimeSignature: MidiMessage, prevMeasureStart: MidiEvent,
-                                   prevTimeSignature: MidiMessage) = {
-      new MidiEvent(
-        prevMeasureStart.ticks + measureTicks(ticksPerBeat, prevTimeSignature.get(Accessors.timeSignatureAccessor)),
-        eventTimeSignature)
-    }
-
     @tailrec
     private def parseRec(acc: immutable.List[Measure],
                          currTimeSignature: MidiMessage,
@@ -45,7 +38,7 @@ object TrackStructure {
                          rem: Seq[MidiEvent]): Seq[Measure] = {
       // TODO: get rid of this cons + reverse silliness
       if (rem.isEmpty) {
-        (new Measure(measure.reverse) :: acc).reverse
+        (new Measure(currTimeSignature.get(Accessors.timeSignatureAccessor), measure.reverse) :: acc).reverse
       } else {
         val event = rem.head
         val measureStart = measure.last
@@ -59,8 +52,9 @@ object TrackStructure {
         if (withinMeasure(event, currTimeSignature, measureStart)) {
           parseRec(acc, nextTimeSignature, event :: measure, rem.tail)
         } else {
-          parseRec(new Measure(measure.reverse) :: acc, nextTimeSignature,
-            event :: timeSignatureEvent(nextTimeSignature, measureStart, currTimeSignature) :: Nil,
+          parseRec(new Measure(currTimeSignature.get(Accessors.timeSignatureAccessor), measure.reverse) :: acc,
+            nextTimeSignature,
+            event :: Nil,
             rem.tail)
         }
       }
