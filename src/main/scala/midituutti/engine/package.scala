@@ -54,7 +54,7 @@ package object engine {
       val before = playing
       playing = true
       if (!before) waitLock.synchronized {
-        waitLock.notify()
+        waitLock.notifyAll()
       }
     }
 
@@ -177,33 +177,30 @@ package object engine {
     }
 
     new Engine with PlayerListener {
-      val readerControl = new PlayControl
-      val playerControl = new PlayControl
+      val playControl = new PlayControl
 
-      val player = new Player(playerControl, this, 1.0)
+      val player = new Player(playControl, this, 1.0)
       player.start()
-      val reader = new Reader(readerControl, initialFrom.getOrElse(1), initialFrom.getOrElse(1),
+      val reader = new Reader(playControl, initialFrom.getOrElse(1), initialFrom.getOrElse(1),
         initialTo.getOrElse(track.measures.length))
       reader.start()
 
       private val tempoListeners = new mutable.HashSet[TempoListener]()
 
-      override def isPlaying: Boolean = playerControl.isPlaying
+      override def isPlaying: Boolean = playControl.isPlaying
 
       override def play(): Unit = {
-        playerControl.play()
-        readerControl.play()
+        playControl.play()
       }
 
       override def stop(): Unit = {
-        if (playerControl.isPlaying) {
+        if (playControl.isPlaying) {
           signalStop()
         }
       }
 
       private def signalStop(): Unit = {
-        readerControl.stop()
-        playerControl.stop()
+        playControl.stop()
         reader.interrupt()
         player.interrupt()
         synthesizerPort.panic()
