@@ -82,7 +82,6 @@ package object engine {
     val midiFile = midi.openFile(filePath)
     val track = TrackStructure.of(midiFile)
 
-    @volatile var playing = false
     val queue = new SynchronousQueue[MidiEvent]
 
     class Reader(val playControl: PlaySemaphore,
@@ -189,17 +188,15 @@ package object engine {
 
       private val tempoListeners = new mutable.HashSet[TempoListener]()
 
-      override def isPlaying: Boolean = playing
+      override def isPlaying: Boolean = playerControl.isPlaying
 
       override def play(): Unit = {
-        playing = true
         playerControl.play()
         readerControl.play()
       }
 
       override def stop(): Unit = {
-        if (playing) {
-          playing = false
+        if (playerControl.isPlaying) {
           signalStop()
         }
       }
@@ -213,7 +210,6 @@ package object engine {
       }
 
       override def quit(): Unit = {
-        playing = false
         signalStop()
       }
 
