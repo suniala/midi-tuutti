@@ -12,13 +12,17 @@ package object engine {
     if (message.isNote) {
       val note = Accessors.noteAccessor.get(message)
       if (mutedChannels.contains(note.channel)) {
-        NoteMessage(note.copy(velocity = 0))
+        NoteMessage(message.ticks, note.copy(velocity = 0))
       } else {
         message
       }
     } else {
       message
     }
+  }
+
+  case class EngineEvent(message: MidiMessage) {
+    def ticks: Tick = message.ticks
   }
 
   trait Engine {
@@ -83,7 +87,7 @@ package object engine {
     val midiFile = midi.openFile(filePath)
     val track = TrackStructure.withClick(midiFile)
 
-    val queue = new SynchronousQueue[MidiEvent]
+    val queue = new SynchronousQueue[EngineEvent]
 
     class Reader(val playControl: PlayControl,
                  @volatile var measureCursor: Int,

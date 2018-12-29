@@ -76,6 +76,8 @@ package object midi {
   }
 
   abstract class MidiMessage() {
+    def ticks: Tick
+
     def toJava: JavaMidiMessage
 
     def isMeta: Boolean
@@ -92,7 +94,7 @@ package object midi {
       s"MidiMessage(meta=$isMeta, metaType=$metaType, value=${metaType.map(t => get(t.accessor))}"
   }
 
-  case class NoteMessage(note: Note) extends MidiMessage {
+  case class NoteMessage(override val ticks: Tick, note: Note) extends MidiMessage() {
     override def toJava: JavaMidiMessage = new JavaShortMessage(
       note.onOff match { case OnOff.On => JavaShortMessage.NOTE_ON; case _ => JavaShortMessage.NOTE_OFF },
       note.channel - 1,
@@ -107,7 +109,7 @@ package object midi {
     override def metaType: Option[MetaType] = None
   }
 
-  private class JavaWrapperMessage(val message: JavaMidiMessage) extends MidiMessage {
+  private class JavaWrapperMessage(override val ticks: Tick, val message: JavaMidiMessage) extends MidiMessage {
     override def toJava: JavaMidiMessage = message
 
     override def isMeta: Boolean = message.isInstanceOf[JavaMetaMessage]
@@ -123,10 +125,6 @@ package object midi {
         case metaMessage: JavaMetaMessage => Some(MessageDecoder.metaTypeOf(metaMessage))
         case _ => None
       }
-  }
-
-  class MidiEvent(val ticks: Tick, val message: MidiMessage) {
-    override def toString: String = s"MidiEvent($ticks, $message)"
   }
 
   class MidiPort(private val receiver: Receiver) {
@@ -145,11 +143,11 @@ package object midi {
   class MidiFile(private val seq: Sequence) {
     def ticksPerBeat: Int = seq.getResolution
 
-    def events: Seq[MidiEvent] =
+    def messages: Seq[MidiMessage] =
       seq.getTracks
         .flatMap(track =>
           for (eventI <- 0 until track.size)
-            yield new MidiEvent(new Tick(track.get(eventI).getTick), new JavaWrapperMessage(track.get(eventI).getMessage)))
+            yield new JavaWrapperMessage(new Tick(track.get(eventI).getTick), track.get(eventI).getMessage))
         .toList
         .sortWith({ case (a, b) => a.ticks < b.ticks })
   }
