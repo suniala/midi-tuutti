@@ -81,7 +81,7 @@ package object engine {
   def createEngine(filePath: String, initialFrom: Option[Int], initialTo: Option[Int]): Engine = {
     val synthesizerPort = midi.createDefaultSynthesizerPort
     val midiFile = midi.openFile(filePath)
-    val track = TrackStructure.of(midiFile)
+    val track = TrackStructure.withClick(midiFile)
 
     val queue = new SynchronousQueue[MidiEvent]
 

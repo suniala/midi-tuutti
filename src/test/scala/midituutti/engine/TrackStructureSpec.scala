@@ -21,7 +21,7 @@ class TrackStructureSpec extends FunSpec with Matchers {
       val track = TrackStructure.of(midiFile)
 
       val expectations = List(
-        Expectation(TimeSignature(4, 4), Tick(0), 19),
+        Expectation(TimeSignature(4, 4), Tick(0), 18),
         Expectation(TimeSignature(4, 4), Tick(1920), 8),
         Expectation(TimeSignature(3, 4), Tick(3840), 7),
         Expectation(TimeSignature(3, 4), Tick(5280), 6),
