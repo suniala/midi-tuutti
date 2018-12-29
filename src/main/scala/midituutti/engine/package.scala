@@ -21,8 +21,16 @@ package object engine {
     }
   }
 
-  case class EngineEvent(message: MidiMessage) {
-    def ticks: Tick = message.ticks
+  trait EngineEvent {
+    def ticks: Tick
+  }
+
+  case class MessageEvent(message: MidiMessage) extends EngineEvent {
+    override def ticks: Tick = message.ticks
+  }
+
+  case class ClickEvent(message: MidiMessage) extends EngineEvent {
+    override def ticks: Tick = message.ticks
   }
 
   trait Engine {
@@ -166,11 +174,16 @@ package object engine {
                 }
               }
 
-              if (event.message.metaType.contains(MetaType.Tempo)) {
-                tempo = Some(Accessors.tempoAccessor.get(event.message))
-                listener.tempoChanged()
-              } else {
-                synthesizerPort.send(muteOrPass(mutedChannels, event.message))
+              event match {
+                case MessageEvent(message) =>
+                  if (message.metaType.contains(MetaType.Tempo)) {
+                    tempo = Some(Accessors.tempoAccessor.get(message))
+                    listener.tempoChanged()
+                  } else {
+                    synthesizerPort.send(muteOrPass(mutedChannels, message))
+                  }
+                case ClickEvent(message) =>
+                  synthesizerPort.send(message)
               }
 
               prevTicks = Some(event.ticks)

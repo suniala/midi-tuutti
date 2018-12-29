@@ -35,7 +35,7 @@ object TrackStructure {
         .map(measure.start + beatTicks(_, ticksPerBeat, measure.timeSignature))
       val clickEvents = clickEventTicks
         .zipWithIndex
-        .map({ case (t, _) => EngineEvent(NoteMessage(t, Note(OnOff.On, 10, 42, 100))) })
+        .map({ case (t, _) => ClickEvent(NoteMessage(t, Note(OnOff.On, 10, 42, 100))) })
       new Measure(measure.start,
         measure.timeSignature,
         (clickEvents ++ measure.events).sortWith({ case (a, b) => a.ticks < b.ticks }))
@@ -76,13 +76,13 @@ object TrackStructure {
           else currTimeSignature
 
         if (withinMeasure(message, currTimeSignature, measureStart)) {
-          parseRec(acc, nextTimeSignature, measureStart, EngineEvent(message) :: measure, rem.tail)
+          parseRec(acc, nextTimeSignature, measureStart, MessageEvent(message) :: measure, rem.tail)
         } else {
           parseRec(
             new Measure(measureStart, currTimeSignature, measure.reverse) :: acc,
             nextTimeSignature,
             nextMeasureStart(measureStart, currTimeSignature),
-            EngineEvent(message) :: Nil,
+            MessageEvent(message) :: Nil,
             rem.tail)
         }
       }
