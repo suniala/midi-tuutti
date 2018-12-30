@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import javafx.event.EventHandler
 import javafx.scene.input.KeyEvent
 import javafx.{concurrent => jfxc}
-import midituutti.engine.createEngine
+import midituutti.engine.{ClickChannel, MidiChannel, createEngine}
 import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
@@ -22,10 +22,12 @@ object MidiTuutti extends JFXApp {
   private val args = parameters.unnamed
   private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
   private val engine = createEngine(filePath, None, None)
-  private val drumChannel = 10
+  private val drumChannel = MidiChannel(10)
   private val songTempo = new ObjectProperty[Option[Double]](this, "songTempo", None)
   private val tempoMultiplier = new ObjectProperty[Option[Double]](this, "tempoMultiplier", Some(1.0))
   private val adjustedTempo = new ObjectProperty[Option[Double]](this, "adjustedTempo", None)
+
+  engine.mute(ClickChannel)
 
   type EngineEvent = () => Unit
   private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
@@ -74,6 +76,16 @@ object MidiTuutti extends JFXApp {
     onAction = handle {
       if (engine.isMuted(drumChannel)) engine.unMute(drumChannel)
       else engine.mute(drumChannel)
+    }
+    focusTraversable = false
+  }
+
+  private val clickButton: ToggleButton = new ToggleButton {
+    text = "Click"
+    selected = !engine.isMuted(ClickChannel)
+    onAction = handle {
+      if (engine.isMuted(ClickChannel)) engine.unMute(ClickChannel)
+      else engine.mute(ClickChannel)
     }
     focusTraversable = false
   }
@@ -144,6 +156,7 @@ object MidiTuutti extends JFXApp {
     case KeyCode.S => tempoMulDown.fire()
     case KeyCode.A => prevBarButton.fire()
     case KeyCode.D => nextBarButton.fire()
+    case KeyCode.C => clickButton.fire()
     case _ => // ignore
   }
 
@@ -160,6 +173,7 @@ object MidiTuutti extends JFXApp {
             children = Seq(
               playButton,
               muteButton,
+              clickButton,
               tempoMulUp,
               tempoMulDown,
               prevBarButton,

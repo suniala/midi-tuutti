@@ -1,6 +1,7 @@
 package midituutti.engine
 
-import midituutti.midi.MessageDecoder.{Accessors, Note, OnOff, TimeSignature}
+import midituutti.engine.ClickType.ClickType
+import midituutti.midi.MessageDecoder.{Accessors, TimeSignature}
 import midituutti.midi._
 
 import scala.annotation.tailrec
@@ -27,15 +28,25 @@ object TrackStructure {
     new Tick(ticksPerBeat * timeSignature.numerator / (timeSignature.denominator / 4))
 
   private def beatTicks(beat: Int, ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
-    new Tick(ticksPerBeat * (beat - 1) / (timeSignature.denominator / 4))
+    new Tick(ticksPerBeat * (beat - 1) / (timeSignature.denominator / (2 * timeSignature.denominator / 4)))
 
   private def injectClick(measures: Seq[Measure], ticksPerBeat: Int): Seq[Measure] = {
+    def clickType(eight: Int): ClickType = {
+      if (eight == 1) ClickType.One
+      else
+        eight % 2 match {
+          case 1 => ClickType.Quarter
+          case _ => ClickType.Eight
+        }
+    }
+
     def measureClick(measure: Measure): Measure = {
-      val clickEventTicks = (1 to measure.timeSignature.numerator)
+      val eightCount = measure.timeSignature.numerator * 8 / measure.timeSignature.denominator
+      val clickEventTicks = (1 to eightCount)
         .map(measure.start + beatTicks(_, ticksPerBeat, measure.timeSignature))
       val clickEvents = clickEventTicks
         .zipWithIndex
-        .map({ case (t, _) => ClickEvent(NoteMessage(t, Note(OnOff.On, 10, 42, 100))) })
+        .map({ case (t, i) => ClickEvent(t, clickType(i + 1)) })
       new Measure(measure.start,
         measure.timeSignature,
         (clickEvents ++ measure.events).sortWith({ case (a, b) => a.ticks < b.ticks }))

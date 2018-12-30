@@ -2,16 +2,17 @@ package midituutti
 
 import java.util.concurrent.SynchronousQueue
 
-import midituutti.midi.MessageDecoder.Accessors
+import midituutti.engine.ClickType.ClickType
+import midituutti.midi.MessageDecoder.{Accessors, Note, OnOff}
 import midituutti.midi._
 
 import scala.collection.mutable
 
 package object engine {
-  private def muteOrPass(mutedChannels: collection.Set[Int], message: MidiMessage): MidiMessage = {
+  private def muteOrPass(mutedChannels: collection.Set[EngineChannel], message: MidiMessage): MidiMessage = {
     if (message.isNote) {
       val note = Accessors.noteAccessor.get(message)
-      if (mutedChannels.contains(note.channel)) {
+      if (mutedChannels.exists({ case MidiChannel(channel) => channel == note.channel; case _ => false })) {
         NoteMessage(message.ticks, note.copy(velocity = 0))
       } else {
         message
@@ -29,9 +30,21 @@ package object engine {
     override def ticks: Tick = message.ticks
   }
 
-  case class ClickEvent(message: MidiMessage) extends EngineEvent {
-    override def ticks: Tick = message.ticks
+  object ClickType extends Enumeration {
+    type ClickType = Value
+
+    val One: ClickType = Value
+    val Quarter: ClickType = Value
+    val Eight: ClickType = Value
   }
+
+  case class ClickEvent(ticks: Tick, click: ClickType) extends EngineEvent
+
+  trait EngineChannel
+
+  case class MidiChannel(channel: Int) extends EngineChannel
+
+  object ClickChannel extends EngineChannel
 
   trait Engine {
 
@@ -49,11 +62,11 @@ package object engine {
 
     def quit(): Unit
 
-    def mute(channel: Int): Engine
+    def mute(channel: EngineChannel): Engine
 
-    def unMute(channel: Int): Engine
+    def unMute(channel: EngineChannel): Engine
 
-    def isMuted(channel: Int): Boolean
+    def isMuted(channel: EngineChannel): Boolean
 
     def addTempoListener(listener: TempoListener)
 
@@ -140,15 +153,15 @@ package object engine {
                  var tempoMultiplier: Double) extends Thread {
       setDaemon(true)
 
-      private val mutedChannels = new mutable.HashSet[Int]()
+      private val mutedChannels = new mutable.HashSet[EngineChannel]()
 
       private var tempo: Option[Tempo] = None
 
-      def mute(channel: Int): Unit = mutedChannels.add(channel)
+      def mute(channel: EngineChannel): Unit = mutedChannels.add(channel)
 
-      def unMute(channel: Int): Unit = mutedChannels.remove(channel)
+      def unMute(channel: EngineChannel): Unit = mutedChannels.remove(channel)
 
-      def isMuted(channel: Int): Boolean = mutedChannels.contains(channel)
+      def isMuted(channel: EngineChannel): Boolean = mutedChannels.contains(channel)
 
       def currentTempo: Option[Tempo] = tempo
 
@@ -182,8 +195,13 @@ package object engine {
                   } else {
                     synthesizerPort.send(muteOrPass(mutedChannels, message))
                   }
-                case ClickEvent(message) =>
-                  synthesizerPort.send(message)
+                case ClickEvent(t, click) =>
+                  if (!mutedChannels.contains(ClickChannel))
+                    click match {
+                      case ClickType.One => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 40, 100)))
+                      case ClickType.Quarter => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 41, 100)))
+                      case ClickType.Eight => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 42, 100)))
+                    }
               }
 
               prevTicks = Some(event.ticks)
@@ -231,17 +249,17 @@ package object engine {
         signalStop()
       }
 
-      override def mute(channel: Int): Engine = {
+      override def mute(channel: EngineChannel): Engine = {
         player.mute(channel)
         this
       }
 
-      override def unMute(channel: Int): Engine = {
+      override def unMute(channel: EngineChannel): Engine = {
         player.unMute(channel)
         this
       }
 
-      override def isMuted(channel: Int): Boolean = player.isMuted(channel)
+      override def isMuted(channel: EngineChannel): Boolean = player.isMuted(channel)
 
       override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
 
