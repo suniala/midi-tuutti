@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import javafx.event.EventHandler
 import javafx.scene.input.KeyEvent
 import javafx.{concurrent => jfxc}
-import midituutti.engine.{ClickChannel, MidiChannel, createEngine}
+import midituutti.engine.{ClickTrack, MidiTrack, createEngine}
 import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
@@ -22,12 +22,12 @@ object MidiTuutti extends JFXApp {
   private val args = parameters.unnamed
   private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
   private val engine = createEngine(filePath, None, None)
-  private val drumChannel = MidiChannel(10)
+  private val drumTrack = MidiTrack(10)
   private val songTempo = new ObjectProperty[Option[Double]](this, "songTempo", None)
   private val tempoMultiplier = new ObjectProperty[Option[Double]](this, "tempoMultiplier", Some(1.0))
   private val adjustedTempo = new ObjectProperty[Option[Double]](this, "adjustedTempo", None)
 
-  engine.mute(ClickChannel)
+  engine.mute(ClickTrack)
 
   type EngineEvent = () => Unit
   private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
@@ -72,20 +72,20 @@ object MidiTuutti extends JFXApp {
 
   private val muteButton: ToggleButton = new ToggleButton {
     text = "Mute drums"
-    selected = engine.isMuted(drumChannel)
+    selected = engine.isMuted(drumTrack)
     onAction = handle {
-      if (engine.isMuted(drumChannel)) engine.unMute(drumChannel)
-      else engine.mute(drumChannel)
+      if (engine.isMuted(drumTrack)) engine.unMute(drumTrack)
+      else engine.mute(drumTrack)
     }
     focusTraversable = false
   }
 
   private val clickButton: ToggleButton = new ToggleButton {
     text = "Click"
-    selected = !engine.isMuted(ClickChannel)
+    selected = !engine.isMuted(ClickTrack)
     onAction = handle {
-      if (engine.isMuted(ClickChannel)) engine.unMute(ClickChannel)
-      else engine.mute(ClickChannel)
+      if (engine.isMuted(ClickTrack)) engine.unMute(ClickTrack)
+      else engine.mute(ClickTrack)
     }
     focusTraversable = false
   }

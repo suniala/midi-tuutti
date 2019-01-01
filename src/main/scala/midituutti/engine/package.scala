@@ -9,10 +9,10 @@ import midituutti.midi._
 import scala.collection.mutable
 
 package object engine {
-  private def muteOrPass(mutedChannels: collection.Set[EngineChannel], message: MidiMessage): MidiMessage = {
+  private def muteOrPass(mutedTracks: collection.Set[EngineTrack], message: MidiMessage): MidiMessage = {
     if (message.isNote) {
       val note = Accessors.noteAccessor.get(message)
-      if (mutedChannels.exists({ case MidiChannel(channel) => channel == note.channel; case _ => false })) {
+      if (mutedTracks.exists({ case MidiTrack(channel) => channel == note.channel; case _ => false })) {
         NoteMessage(message.ticks, note.copy(velocity = 0))
       } else {
         message
@@ -40,11 +40,11 @@ package object engine {
 
   case class ClickEvent(ticks: Tick, click: ClickType) extends EngineEvent
 
-  trait EngineChannel
+  trait EngineTrack
 
-  case class MidiChannel(channel: Int) extends EngineChannel
+  case class MidiTrack(channel: Int) extends EngineTrack
 
-  object ClickChannel extends EngineChannel
+  object ClickTrack extends EngineTrack
 
   trait Engine {
 
@@ -62,11 +62,11 @@ package object engine {
 
     def quit(): Unit
 
-    def mute(channel: EngineChannel): Engine
+    def mute(track: EngineTrack): Engine
 
-    def unMute(channel: EngineChannel): Engine
+    def unMute(track: EngineTrack): Engine
 
-    def isMuted(channel: EngineChannel): Boolean
+    def isMuted(track: EngineTrack): Boolean
 
     def addTempoListener(listener: TempoListener)
 
@@ -106,7 +106,7 @@ package object engine {
   def createEngine(filePath: String, initialFrom: Option[Int], initialTo: Option[Int]): Engine = {
     val synthesizerPort = midi.createDefaultSynthesizerPort
     val midiFile = midi.openFile(filePath)
-    val track = TrackStructure.withClick(midiFile)
+    val song = SongStructure.withClick(midiFile)
 
     val queue = new SynchronousQueue[EngineEvent]
 
@@ -128,7 +128,7 @@ package object engine {
               for (readerCursor <- startFrom to to) {
                 println(s"reader: at $readerCursor")
                 measureCursor = readerCursor
-                val measure = track.measures(readerCursor - 1)
+                val measure = song.measures(readerCursor - 1)
                 for (event <- measure.events) {
                   queue.put(event)
                 }
@@ -153,15 +153,15 @@ package object engine {
                  var tempoMultiplier: Double) extends Thread {
       setDaemon(true)
 
-      private val mutedChannels = new mutable.HashSet[EngineChannel]()
+      private val mutedTracks = new mutable.HashSet[EngineTrack]()
 
       private var tempo: Option[Tempo] = None
 
-      def mute(channel: EngineChannel): Unit = mutedChannels.add(channel)
+      def mute(track: EngineTrack): Unit = mutedTracks.add(track)
 
-      def unMute(channel: EngineChannel): Unit = mutedChannels.remove(channel)
+      def unMute(track: EngineTrack): Unit = mutedTracks.remove(track)
 
-      def isMuted(channel: EngineChannel): Boolean = mutedChannels.contains(channel)
+      def isMuted(track: EngineTrack): Boolean = mutedTracks.contains(track)
 
       def currentTempo: Option[Tempo] = tempo
 
@@ -193,10 +193,10 @@ package object engine {
                     tempo = Some(Accessors.tempoAccessor.get(message))
                     listener.tempoChanged()
                   } else {
-                    synthesizerPort.send(muteOrPass(mutedChannels, message))
+                    synthesizerPort.send(muteOrPass(mutedTracks, message))
                   }
                 case ClickEvent(t, click) =>
-                  if (!mutedChannels.contains(ClickChannel))
+                  if (!mutedTracks.contains(ClickTrack))
                     click match {
                       case ClickType.One => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 40, 100)))
                       case ClickType.Quarter => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 41, 100)))
@@ -221,7 +221,7 @@ package object engine {
       val player = new Player(playControl, this, 1.0)
       player.start()
       val reader = new Reader(playControl, initialFrom.getOrElse(1), initialFrom.getOrElse(1),
-        initialTo.getOrElse(track.measures.length))
+        initialTo.getOrElse(song.measures.length))
       reader.start()
 
       private val tempoListeners = new mutable.HashSet[TempoListener]()
@@ -249,17 +249,17 @@ package object engine {
         signalStop()
       }
 
-      override def mute(channel: EngineChannel): Engine = {
-        player.mute(channel)
+      override def mute(track: EngineTrack): Engine = {
+        player.mute(track)
         this
       }
 
-      override def unMute(channel: EngineChannel): Engine = {
-        player.unMute(channel)
+      override def unMute(track: EngineTrack): Engine = {
+        player.unMute(track)
         this
       }
 
-      override def isMuted(channel: EngineChannel): Boolean = player.isMuted(channel)
+      override def isMuted(track: EngineTrack): Boolean = player.isMuted(track)
 
       override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
 
@@ -273,7 +273,7 @@ package object engine {
 
       override def jumpToBar(f: Int => Int): Unit = {
         stop()
-        reader.measureCursor = math.min(math.max(f(reader.measureCursor), 1), track.measures.length)
+        reader.measureCursor = math.min(math.max(f(reader.measureCursor), 1), song.measures.length)
         play()
       }
     }

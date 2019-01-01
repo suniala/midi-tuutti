@@ -9,19 +9,18 @@ import scala.collection.immutable
 
 class Measure(val start: Tick, val timeSignature: TimeSignature, val events: Seq[EngineEvent])
 
-class TrackStructure(val measures: Seq[Measure])
+class SongStructure(val measures: Seq[Measure])
 
-object TrackStructure {
+object SongStructure {
 
-  def of(midiFile: MidiFile): TrackStructure = new TrackStructure(measures(midiFile))
+  def of(midiFile: MidiFile): SongStructure = new SongStructure(measures(midiFile))
 
-  def withClick(midiFile: MidiFile): TrackStructure =
-    new TrackStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat))
+  def withClick(midiFile: MidiFile): SongStructure =
+    new SongStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat))
 
   private def measures(midiFile: MidiFile) = {
-    val track = midiFile.messages
-    val timeSignatureMessage = track.find(_.metaType.contains(MetaType.TimeSignature)).get
-    new Parser(midiFile.ticksPerBeat).parse(timeSignatureMessage, track)
+    val timeSignatureMessage = midiFile.messages.find(_.metaType.contains(MetaType.TimeSignature)).get
+    new Parser(midiFile.ticksPerBeat).parse(timeSignatureMessage, midiFile.messages)
   }
 
   private def measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
@@ -56,9 +55,8 @@ object TrackStructure {
   }
 
   private class Parser(ticksPerBeat: Int) {
-    def parse(ts: MidiMessage, track: Seq[MidiMessage]): Seq[Measure] = {
-      parseRec(Nil, ts.get(Accessors.timeSignatureAccessor), ts.ticks, Nil, track)
-    }
+    def parse(ts: MidiMessage, messages: Seq[MidiMessage]): Seq[Measure] =
+      parseRec(Nil, ts.get(Accessors.timeSignatureAccessor), ts.ticks, Nil, messages)
 
     private def withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean = {
       val delta = message.ticks - measureStart

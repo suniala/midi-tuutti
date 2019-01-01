@@ -7,18 +7,18 @@ import midituutti.midi.MessageDecoder.TimeSignature
 import midituutti.midi.Tick
 import org.scalatest.{FunSpec, Matchers}
 
-class TrackStructureSpec extends FunSpec with Matchers {
+class SongStructureSpec extends FunSpec with Matchers {
 
   case class Expectation(timeSignature: TimeSignature, firstTick: Tick, eventCount: Int)
 
-  describe("TrackStructure parsing") {
+  describe("Song structure parsing") {
 
     /**
       * NOTE: This is a somewhat brittle test. Event counts and head event ticks have been checked with a Midi debugger.
       */
     it("should parse varying time signatures correctly") {
       val midiFile = midi.openFile(testFile("measures-44-34-58.mid"))
-      val track = TrackStructure.of(midiFile)
+      val song = SongStructure.of(midiFile)
 
       val expectations = List(
         Expectation(TimeSignature(4, 4), Tick(0), 18),
@@ -30,9 +30,9 @@ class TrackStructureSpec extends FunSpec with Matchers {
         Expectation(TimeSignature(4, 4), Tick(9120), 10),
       )
 
-      track.measures should have length expectations.length
+      song.measures should have length expectations.length
 
-      track.measures.zip(expectations.indices.zip(expectations)).foreach {
+      song.measures.zip(expectations.indices.zip(expectations)).foreach {
         case (measure, (index, expected)) =>
           withClue(s"At measure $index, ") {
             withClue("measure time signature ") {
