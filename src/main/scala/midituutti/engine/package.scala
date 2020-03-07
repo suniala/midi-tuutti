@@ -75,6 +75,12 @@ package object engine {
     def jumpToBar(f: Int => Int): Unit
   }
 
+  trait SingleNoteHitEngine {
+    def sendNote(note: Note): Unit
+
+    def quit(): Unit
+  }
+
   private class PlayControl {
     private val waitLock = new Object()
 
@@ -100,6 +106,16 @@ package object engine {
           case _: InterruptedException => // ignore, probably we are quitting the app
         }
       }
+    }
+  }
+
+  def createSingeNoteHitEngine(): SingleNoteHitEngine = {
+    val synthesizerPort = midi.createDefaultSynthesizerPort
+
+    new SingleNoteHitEngine {
+      override def sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage(Tick(1), note))
+
+      override def quit(): Unit = synthesizerPort.panic()
     }
   }
 
