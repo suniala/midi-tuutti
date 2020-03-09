@@ -214,9 +214,9 @@ package object engine {
                 case ClickEvent(t, click) =>
                   if (!mutedTracks.contains(ClickTrack))
                     click match {
-                      case ClickType.One => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 40, 100)))
-                      case ClickType.Quarter => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 41, 100)))
-                      case ClickType.Eight => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 42, 100)))
+                      case ClickType.One => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 31, 100)))
+                      case ClickType.Quarter => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 77, 100)))
+                      case ClickType.Eight => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 75, 100)))
                     }
               }
 
