@@ -1,297 +1,342 @@
-package midituutti
+package midituutti.engine
 
+import midituutti.midi.Accessors
+import midituutti.midi.MetaType
+import midituutti.midi.MidiFile
+import midituutti.midi.MidiMessage
+import midituutti.midi.MidiPort
+import midituutti.midi.Note
+import midituutti.midi.NoteMessage
+import midituutti.midi.OnOff
+import midituutti.midi.OutputTimestamp
+import midituutti.midi.Tempo
+import midituutti.midi.Tick
+import midituutti.midi.createDefaultSynthesizerPort
+import midituutti.midi.openFile
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.SynchronousQueue
 
-import midituutti.engine.ClickType.ClickType
-import midituutti.midi.MessageDecoder.{Accessors, Note, OnOff}
-import midituutti.midi._
-
-import scala.collection.mutable
-
-package object engine {
-  private def muteOrPass(mutedTracks: collection.Set[EngineTrack], message: MidiMessage): MidiMessage = {
-    if (message.isNote) {
-      val note = Accessors.noteAccessor.get(message)
-      if (mutedTracks.exists({ case MidiTrack(channel) => channel == note.channel; case _ => false })) {
-        NoteMessage(message.ticks, note.copy(velocity = 0))
-      } else {
-        message
-      }
-    } else {
-      message
-    }
-  }
-
-  trait EngineEvent {
-    def ticks: Tick
-  }
-
-  case class MessageEvent(message: MidiMessage) extends EngineEvent {
-    override def ticks: Tick = message.ticks
-  }
-
-  object ClickType extends Enumeration {
-    type ClickType = Value
-
-    val One: ClickType = Value
-    val Quarter: ClickType = Value
-    val Eight: ClickType = Value
-  }
-
-  case class ClickEvent(ticks: Tick, click: ClickType) extends EngineEvent
-
-  trait EngineTrack
-
-  case class MidiTrack(channel: Int) extends EngineTrack
-
-  object ClickTrack extends EngineTrack
-
-  trait Engine {
-
-    case class TempoEvent(tempo: Option[Tempo],
-                          multiplier: Double,
-                          adjustedTempo: Option[Tempo])
-
-    type TempoListener = TempoEvent => Unit
-
-    def isPlaying: Boolean
-
-    def play(): Unit
-
-    def stop(): Unit
-
-    def quit(): Unit
-
-    def mute(track: EngineTrack): Engine
-
-    def unMute(track: EngineTrack): Engine
-
-    def isMuted(track: EngineTrack): Boolean
-
-    def addTempoListener(listener: TempoListener)
-
-    def updateTempoMultiplier(f: Double => Double): Unit
-
-    def jumpToBar(f: Int => Int): Unit
-  }
-
-  trait SingleNoteHitEngine {
-    def sendNote(note: Note): Unit
-
-    def quit(): Unit
-  }
-
-  private class PlayControl {
-    private val waitLock = new Object()
-
-    @volatile private var playing = false
-
-    def play(): Unit = waitLock.synchronized {
-      val before = playing
-      playing = true
-      if (!before) waitLock.notifyAll()
-    }
-
-    def stop(): Unit = {
-      playing = false
-    }
-
-    def isPlaying: Boolean = playing
-
-    def waitForPlay(): Unit = waitLock.synchronized {
-      while (!playing) {
-        try {
-          waitLock.wait()
-        } catch {
-          case _: InterruptedException => // ignore, probably we are quitting the app
-        }
-      }
-    }
-  }
-
-  def createSingeNoteHitEngine(): SingleNoteHitEngine = {
-    val synthesizerPort = midi.createDefaultSynthesizerPort
-
-    new SingleNoteHitEngine {
-      override def sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage(Tick(1), note))
-
-      override def quit(): Unit = synthesizerPort.panic()
-    }
-  }
-
-  def createEngine(filePath: String, initialFrom: Option[Int], initialTo: Option[Int]): Engine = {
-    val synthesizerPort = midi.createDefaultSynthesizerPort
-    val midiFile = midi.openFile(filePath)
-    val song = SongStructure.withClick(midiFile)
-
-    val queue = new SynchronousQueue[EngineEvent]
-
-    class Reader(val playControl: PlayControl,
-                 @volatile var measureCursor: Int,
-                 @volatile var from: Int,
-                 @volatile var to: Int) extends Thread {
-      setDaemon(true)
-
-      override def run(): Unit = {
-        while (true) {
-          playControl.waitForPlay()
-          println("reader: playing")
-
-          try {
-            while (playControl.isPlaying) {
-              val startFrom = measureCursor
-              println(s"reader: reading $startFrom - $to")
-              for (readerCursor <- startFrom to to) {
-                println(s"reader: at $readerCursor")
-                measureCursor = readerCursor
-                val measure = song.measures(readerCursor - 1)
-                for (event <- measure.events) {
-                  queue.put(event)
-                }
-              }
-              measureCursor = from
+private fun muteOrPass(mutedTracks: Set<EngineTrack>, message: MidiMessage): MidiMessage =
+        if (message.isNote()) {
+            val note = Accessors.noteAccessor.get(message)
+            if (mutedTracks.any { t: EngineTrack ->
+                        when (t) {
+                            is MidiTrack -> t.channel == note.channel
+                            else -> false
+                        }
+                    }) {
+                NoteMessage(message.ticks(), note.copy(velocity = 0))
+            } else {
+                message
             }
-          } catch {
-            case _: InterruptedException => println("reader: stop playing")
-          }
+        } else {
+            message
         }
 
-        println("reader: done")
-      }
+sealed class EngineEvent {
+    abstract fun ticks(): Tick
+}
+
+data class MessageEvent(val message: MidiMessage) : EngineEvent() {
+    override fun ticks(): Tick = message.ticks()
+}
+
+enum class ClickType {
+    One, Quarter, Eight
+}
+
+data class ClickEvent(private val ticks: Tick, val click: ClickType) : EngineEvent() {
+    override fun ticks(): Tick = ticks
+}
+
+interface EngineTrack
+
+data class MidiTrack(val channel: Int) : EngineTrack
+
+sealed class PlaybackEvent
+data class PlayEvent(val playing: Boolean) : PlaybackEvent()
+data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
+data class TempoEvent(val tempo: Tempo?,
+                      val multiplier: Double,
+                      val adjustedTempo: Tempo?) : PlaybackEvent()
+
+typealias PlaybackListener = (PlaybackEvent) -> Unit
+
+object ClickTrack : EngineTrack
+
+interface Engine {
+    fun isPlaying(): Boolean
+
+    fun play()
+
+    fun stop()
+
+    fun quit()
+
+    fun mute(track: EngineTrack): Engine
+
+    fun unMute(track: EngineTrack): Engine
+
+    fun isMuted(track: EngineTrack): Boolean
+
+    fun addPlaybackListener(listener: PlaybackListener)
+
+    fun updateTempoMultiplier(f: (Double) -> Double)
+
+    fun jumpToBar(f: (Int) -> Int)
+}
+
+interface SingleNoteHitEngine {
+    fun sendNote(note: Note)
+
+    fun quit()
+}
+
+private class PlayControl {
+
+    private val waitLock = Object()
+
+    @Volatile
+    private var playing = false
+
+    fun play(): Unit = synchronized(waitLock) {
+        val before = playing
+        playing = true
+        if (!before) waitLock.notifyAll()
     }
 
-    trait PlayerListener {
-      def tempoChanged(): Unit
+    fun stop() {
+        playing = false
     }
 
-    class Player(val playControl: PlayControl,
-                 private val listener: PlayerListener,
-                 var tempoMultiplier: Double) extends Thread {
-      setDaemon(true)
+    fun isPlaying(): Boolean = playing
 
-      private val mutedTracks = new mutable.HashSet[EngineTrack]()
+    fun waitForPlay(): Unit = synchronized(waitLock) {
+        while (!playing) {
+            try {
+                waitLock.wait()
+            } catch (e: InterruptedException) {
+                // ignore, probably we are quitting the app
+            }
+        }
+    }
+}
 
-      private var tempo: Option[Tempo] = None
+fun createSingeNoteHitEngine(): SingleNoteHitEngine {
+    val synthesizerPort = createDefaultSynthesizerPort()
 
-      def mute(track: EngineTrack): Unit = mutedTracks.add(track)
+    return object : SingleNoteHitEngine {
+        override fun sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage(Tick(1), note))
 
-      def unMute(track: EngineTrack): Unit = mutedTracks.remove(track)
+        override fun quit(): Unit = synthesizerPort.panic()
+    }
+}
 
-      def isMuted(track: EngineTrack): Boolean = mutedTracks.contains(track)
+private interface PlayerListener {
+    fun tempoChanged()
+}
 
-      def currentTempo: Option[Tempo] = tempo
+private class Reader(val playControl: PlayControl,
+                     @Volatile var measureCursor: Int,
+                     @Volatile var from: Int,
+                     @Volatile var to: Int,
+                     val queue: BlockingQueue<EngineEvent>,
+                     val song: SongStructure) : Thread() {
+    init {
+        isDaemon = true
+    }
 
-      def currentAdjustedTempo: Option[Tempo] = tempo.map(_ * tempoMultiplier)
-
-      override def run(): Unit = {
+    override fun run() {
         while (true) {
-          playControl.waitForPlay()
-          var prevTicks: Option[Tick] = None
-          println("player: playing")
+            playControl.waitForPlay()
+            println("reader: playing")
 
-          try {
-            while (playControl.isPlaying) {
-              val event = queue.take()
-
-              val ticksDelta = event.ticks - prevTicks.getOrElse(event.ticks)
-              val timestampDelta = tempo.map(
-                t => OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat, t * tempoMultiplier))
-
-              if (timestampDelta.isDefined) {
-                if (timestampDelta.get.nonNil) {
-                  Thread.sleep(timestampDelta.get.millisPart, timestampDelta.get.nanosPart)
-                }
-              }
-
-              event match {
-                case MessageEvent(message) =>
-                  if (message.metaType.contains(MetaType.Tempo)) {
-                    tempo = Some(Accessors.tempoAccessor.get(message))
-                    listener.tempoChanged()
-                  } else {
-                    synthesizerPort.send(muteOrPass(mutedTracks, message))
-                  }
-                case ClickEvent(t, click) =>
-                  if (!mutedTracks.contains(ClickTrack))
-                    click match {
-                      case ClickType.One => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 31, 100)))
-                      case ClickType.Quarter => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 77, 100)))
-                      case ClickType.Eight => synthesizerPort.send(NoteMessage(t, Note(OnOff.On, 10, 75, 100)))
+            try {
+                while (playControl.isPlaying()) {
+                    val startFrom = measureCursor
+                    println("reader: reading $startFrom - $to")
+                    for (readerCursor in startFrom..to) {
+                        println("reader: at $readerCursor")
+                        measureCursor = readerCursor
+                        val measure = song.measures[readerCursor - 1]
+                        for (event in measure.events) {
+                            queue.put(event)
+                        }
                     }
-              }
-
-              prevTicks = Some(event.ticks)
+                    measureCursor = from
+                }
+            } catch (e: InterruptedException) {
+                println("reader: stop playing")
             }
-          } catch {
-            case _: InterruptedException => println("player: stop playing")
-          }
         }
+    }
+}
 
-        println("player: done")
-      }
+private class Player(val playControl: PlayControl,
+                     var tempoMultiplier: Double,
+                     val queue: BlockingQueue<EngineEvent>,
+                     val midiFile: MidiFile,
+                     val synthesizerPort: MidiPort) : Thread() {
+    val playerListeners = mutableListOf<PlayerListener>()
+
+    init {
+        isDaemon = true
     }
 
-    new Engine with PlayerListener {
-      val playControl = new PlayControl
+    fun addPlayerListener(playerListener: PlayerListener) {
+        playerListeners.add(playerListener)
+    }
 
-      val player = new Player(playControl, this, 1.0)
-      player.start()
-      val reader = new Reader(playControl, initialFrom.getOrElse(1), initialFrom.getOrElse(1),
-        initialTo.getOrElse(song.measures.length))
-      reader.start()
+    private val mutedTracks = mutableSetOf<EngineTrack>()
 
-      private val tempoListeners = new mutable.HashSet[TempoListener]()
+    private var tempo: Tempo? = null
 
-      override def isPlaying: Boolean = playControl.isPlaying
+    fun mute(track: EngineTrack) {
+        mutedTracks.add(track)
+    }
 
-      override def play(): Unit = {
-        playControl.play()
-      }
+    fun unMute(track: EngineTrack) {
+        mutedTracks.remove(track)
+    }
 
-      override def stop(): Unit = {
-        if (playControl.isPlaying) {
-          signalStop()
+    fun isMuted(track: EngineTrack): Boolean = mutedTracks.contains(track)
+
+    fun currentTempo(): Tempo? = tempo
+
+    fun currentAdjustedTempo(): Tempo? = tempo?.let { t -> t * tempoMultiplier }
+
+    override fun run() {
+        while (true) {
+            playControl.waitForPlay()
+            var prevTicks: Tick? = null
+            println("player: playing")
+
+            try {
+                while (playControl.isPlaying()) {
+                    val event = queue.take()
+
+                    val ticksDelta = event.ticks() - (prevTicks ?: event.ticks())
+                    val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
+
+                    if (timestampDelta != null) {
+                        if (timestampDelta.nonNil()) {
+                            sleep(timestampDelta.millisPart(), timestampDelta.nanosPart())
+                        }
+                    }
+
+                    when (event) {
+                        is MessageEvent ->
+                            if (event.message.metaType() == MetaType.Tempo) {
+                                tempo = Accessors.tempoAccessor.get(event.message)
+                                playerListeners.forEach { pl -> pl.tempoChanged() }
+                            } else {
+                                synthesizerPort.send(muteOrPass(mutedTracks, event.message))
+                            }
+                        is ClickEvent ->
+                            if (!mutedTracks.contains(ClickTrack)) {
+                                with(event) {
+                                    when (click) {
+                                        ClickType.One -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100)))
+                                        ClickType.Quarter -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100)))
+                                        ClickType.Eight -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100)))
+                                    }
+                                }
+                            }
+                    }
+
+                    prevTicks = event.ticks()
+                }
+            } catch (e: InterruptedException) {
+                println("player: stop playing")
+            }
         }
-      }
+    }
+}
 
-      private def signalStop(): Unit = {
+private class PlayerEngine(val song: SongStructure, val playControl: PlayControl, val player: Player, val reader: Reader) : Engine, PlayerListener {
+    private val playbackListeners = mutableSetOf<PlaybackListener>()
+
+    override fun isPlaying(): Boolean = playControl.isPlaying()
+
+    override fun play() {
+        playControl.play()
+        notify(PlayEvent(true))
+    }
+
+    override fun stop() {
+        if (playControl.isPlaying()) {
+            signalStop()
+        }
+    }
+
+    private fun signalStop() {
         playControl.stop()
         reader.interrupt()
         player.interrupt()
-        synthesizerPort.panic()
-      }
-
-      override def quit(): Unit = {
-        signalStop()
-      }
-
-      override def mute(track: EngineTrack): Engine = {
-        player.mute(track)
-        this
-      }
-
-      override def unMute(track: EngineTrack): Engine = {
-        player.unMute(track)
-        this
-      }
-
-      override def isMuted(track: EngineTrack): Boolean = player.isMuted(track)
-
-      override def addTempoListener(listener: TempoListener): Unit = tempoListeners.add(listener)
-
-      override def tempoChanged(): Unit =
-        tempoListeners.foreach(_.apply(TempoEvent(player.currentTempo, player.tempoMultiplier, player.currentAdjustedTempo)))
-
-      override def updateTempoMultiplier(f: Double => Double): Unit = {
-        player.tempoMultiplier = math.min(math.max(f(player.tempoMultiplier), 0.1), 3.0)
-        tempoChanged()
-      }
-
-      override def jumpToBar(f: Int => Int): Unit = {
-        stop()
-        reader.measureCursor = math.min(math.max(f(reader.measureCursor), 1), song.measures.length)
-        play()
-      }
+        player.synthesizerPort.panic()
+        notify(PlayEvent(false))
     }
-  }
+
+    override fun quit() {
+        signalStop()
+    }
+
+    override fun mute(track: EngineTrack): Engine {
+        player.mute(track)
+        notify(MutePlaybackEvent(track, true))
+        return this
+    }
+
+    override fun unMute(track: EngineTrack): Engine {
+        player.unMute(track)
+        notify(MutePlaybackEvent(track, false))
+        return this
+    }
+
+    override fun isMuted(track: EngineTrack): Boolean = player.isMuted(track)
+
+    override fun addPlaybackListener(listener: PlaybackListener) {
+        playbackListeners.add(listener)
+    }
+
+    override fun tempoChanged(): Unit =
+            TempoEvent(player.currentTempo(), player.tempoMultiplier, player.currentAdjustedTempo()).let { event ->
+                playbackListeners.forEach { listener -> listener(event) }
+            }
+
+    override fun updateTempoMultiplier(f: (Double) -> Double) {
+        player.tempoMultiplier = minOf(maxOf(f(player.tempoMultiplier), 0.1), 3.0)
+        tempoChanged()
+    }
+
+    override fun jumpToBar(f: (Int) -> Int) {
+        stop()
+        reader.measureCursor = minOf(maxOf(f(reader.measureCursor), 1), song.measures.size)
+        play()
+    }
+
+    private fun notify(event: PlaybackEvent) = playbackListeners.forEach { pl -> pl(event) }
+}
+
+data class EngineInitialState(val engine: Engine, val measures: Int)
+
+fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineInitialState {
+    val synthesizerPort = createDefaultSynthesizerPort()
+    val midiFile = openFile(filePath)
+    val song = SongStructure.withClick(midiFile)
+
+    val queue = SynchronousQueue<EngineEvent>()
+
+    val playControl = PlayControl()
+    val player = Player(playControl, 1.0, queue, midiFile, synthesizerPort)
+    player.start()
+
+    val reader = Reader(playControl, initialFrom ?: 1, initialFrom ?: 1,
+            initialTo ?: song.measures.size, queue, song)
+    reader.start()
+
+    val playerEngine = PlayerEngine(song, playControl, player, reader)
+    player.addPlayerListener(playerEngine)
+
+    return EngineInitialState(playerEngine, song.measures.size)
 }

@@ -2,19 +2,20 @@ package midituutti
 
 import midituutti.engine.createEngine
 
-import scala.io.StdIn
+fun main(args: Array<String>) {
+    val filePath = if (args.isNotEmpty()) args[0] else throw IllegalArgumentException("must give path to midi file")
+    val startMeasure = if (args.size >= 2) args[1].toInt() else null
+    val endMeasure = if (args.size >= 3) args[2].toInt() else null
 
-object MidiTuuttiCommand extends App {
-  val filePath = if (args.length >= 1) args(0) else throw new IllegalArgumentException("must give path to midi file")
-  val startMeasure = if (args.length >= 2) Some(args(1).toInt) else None
-  val endMeasure = if (args.length >= 3) Some(args(2).toInt) else None
-
-  val engine = createEngine(filePath, startMeasure, endMeasure)
-  engine.play()
-  StdIn.readLine("Press enter to stop.")
-  engine.stop()
-  StdIn.readLine("Press enter to play.")
-  engine.play()
-  StdIn.readLine("Press enter to quit.")
-  engine.quit()
+    val engine = createEngine(filePath, startMeasure, endMeasure).engine
+    engine.play()
+    print("Press enter to stop.")
+    readLine()
+    engine.stop()
+    print("Press enter to play.")
+    readLine()
+    engine.play()
+    print("Press enter to quit.")
+    readLine()
+    engine.quit()
 }

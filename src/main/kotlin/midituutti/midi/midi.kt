@@ -1,168 +1,172 @@
-package midituutti
+package midituutti.midi
 
-import java.io.{File, InputStream}
-
-import javax.sound.midi.{MidiSystem, Receiver, Sequence, MetaMessage => JavaMetaMessage, MidiMessage => JavaMidiMessage, ShortMessage => JavaShortMessage}
-import midituutti.midi.MessageDecoder.{Accessors, MetaAccessor, Note, OnOff}
-import midituutti.midi.MetaType.MetaType
-
-import scala.annotation.varargs
-import scala.language.implicitConversions
+import java.io.File
+import java.io.InputStream
+import javax.sound.midi.MidiSystem
+import javax.sound.midi.Receiver
+import kotlin.math.roundToLong
+import javax.sound.midi.MetaMessage as JavaMetaMessage
+import javax.sound.midi.MidiMessage as JavaMidiMessage
+import javax.sound.midi.Sequence as MidiSequence
+import javax.sound.midi.ShortMessage as JavaShortMessage
 
 /**
-  * Thin Scala wrappers for the Java MidiSystem.
-  */
-package object midi {
+ * Thin Scala wrappers for the Java MidiSystem.
+ */
 
-  class Tempo(val bpm: Double) extends AnyVal {
-    def *(other: Double): Tempo = Tempo(bpm * other)
-  }
+class Tempo(val bpm: Double) {
+    operator fun times(other: Double): Tempo = Tempo(bpm * other)
+}
 
-  object Tempo {
-    def apply(bpm: Double): Tempo = new Tempo(bpm)
-  }
+data class Tick(val tick: Long) : Comparable<Tick> {
+    override fun compareTo(other: Tick): Int = tick.compareTo(other.tick)
 
-  class Tick(val tick: Long) extends AnyVal {
-    def <(other: Tick): Boolean = tick < other.tick
-
-    def -(other: Tick): Tick = {
-      new Tick(tick - other.tick)
+    operator fun minus(other: Tick): Tick {
+        return Tick(tick - other.tick)
     }
 
-    def +(other: Tick): Tick = {
-      new Tick(tick + other.tick)
+    operator fun plus(other: Tick): Tick {
+        return Tick(tick + other.tick)
     }
 
-    override def toString: String = s"Tick($tick)"
-  }
-
-  object Tick {
-    def apply(tick: Long): Tick = new Tick(tick)
-  }
-
-  class OutputTimestamp private(val asMicros: Long) extends AnyVal {
-    def nonNil: Boolean = asMicros > 0
-
-    def asMillis: Long = asMicros / 1000
-
-    def millisPart: Long = (asMicros / 1000.0).toLong
-
-    def nanosPart: Int = ((asMicros - millisPart * 1000) * 1000).intValue()
-  }
-
-  object OutputTimestamp {
-    def ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp = {
-      val ticksPerSecond = resolution * (tempo.bpm / 60.0)
-      val tickSize = 1.0 / ticksPerSecond
-      ofMicros(Math.round(tick.tick * tickSize * 1000 * 1000))
+    override fun toString(): String {
+        return "Tick($tick)"
     }
+}
 
-    def ofMicros(micros: Long): OutputTimestamp = {
-      new OutputTimestamp(micros)
+class OutputTimestamp private constructor(private val asMicros: Long) {
+    fun nonNil(): Boolean = asMicros > 0
+
+    fun millisPart(): Long = (asMicros / 1000.0).toLong()
+
+    fun nanosPart(): Int = ((asMicros - millisPart() * 1000) * 1000).toInt()
+
+    companion object {
+        fun ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp {
+            val ticksPerSecond = resolution * (tempo.bpm / 60.0)
+            val tickSize = 1.0 / ticksPerSecond
+            return ofMicros((tick.tick * tickSize * 1000 * 1000).roundToLong())
+        }
+
+        private fun ofMicros(micros: Long): OutputTimestamp {
+            return OutputTimestamp(micros)
+        }
     }
-  }
+}
 
-  object MetaType extends Enumeration {
+// TODO: kotlin, note that accessor was dropped
+enum class MetaType {
+    Tempo {
+        override val label: String
+            get() = "tempo"
+    },
+    TimeSignature {
+        override val label: String
+            get() = "time-signature"
+    },
+    NotSupported {
+        override val label: String
+            get() = "not-supported"
+    };
 
-    protected case class Val(label: String, accessor: MetaAccessor[_]) extends super.Val
+    abstract val label: String
+}
 
-    implicit def valueToMetaTypeVal(x: Value): Val = x.asInstanceOf[Val]
+sealed class MidiMessage {
+    abstract fun ticks(): Tick
 
-    type MetaType = Val
+    abstract fun toJava(): JavaMidiMessage
 
-    val Tempo: MetaType = Val("tempo", Accessors.tempoAccessor)
-    val TimeSignature: MetaType = Val("time-signature", Accessors.timeSignatureAccessor)
-    val NotSupported: MetaType = Val("not-supported", Accessors.noneAccessor)
-  }
+    abstract fun isMeta(): Boolean
 
-  abstract class MidiMessage() {
-    def ticks: Tick
+    abstract fun isNote(): Boolean
 
-    def toJava: JavaMidiMessage
+    abstract fun metaType(): MetaType?
 
-    def isMeta: Boolean
+    fun <T> get(accessor: MetaAccessor<T>): T = accessor.get(this)
 
-    def isNote: Boolean
+    override fun toString(): String =
+            "MidiMessage(meta=${isMeta()}, metaType=${metaType()}, " // TODO: kotlin value=${metaType()?.let { t -> get(t.accessor) }}"
+}
 
-    def metaType: Option[MetaType]
+data class NoteMessage(val ticks: Tick, val note: Note) : MidiMessage() {
+    override fun ticks(): Tick = ticks
 
-    def get[T](accessor: MetaAccessor[T]): T = {
-      accessor.get(this)
-    }
-
-    override def toString: String =
-      s"MidiMessage(meta=$isMeta, metaType=$metaType, value=${metaType.map(t => get(t.accessor))}"
-  }
-
-  case class NoteMessage(override val ticks: Tick, note: Note) extends MidiMessage() {
-    override def toJava: JavaMidiMessage = new JavaShortMessage(
-      note.onOff match { case OnOff.On => JavaShortMessage.NOTE_ON; case _ => JavaShortMessage.NOTE_OFF },
-      note.channel - 1,
-      note.note,
-      note.velocity
+    override fun toJava(): JavaMidiMessage = JavaShortMessage(
+            when (note.onOff) {
+                OnOff.On -> JavaShortMessage.NOTE_ON
+                else -> JavaShortMessage.NOTE_OFF
+            },
+            note.channel - 1,
+            note.note,
+            note.velocity
     )
 
-    override def isMeta: Boolean = false
+    override fun isMeta(): Boolean = false
 
-    override def isNote: Boolean = true
+    override fun isNote(): Boolean = true
 
-    override def metaType: Option[MetaType] = None
-  }
+    override fun metaType(): MetaType? = null
+}
 
-  private class JavaWrapperMessage(override val ticks: Tick, val message: JavaMidiMessage) extends MidiMessage {
-    override def toJava: JavaMidiMessage = message
+private class JavaWrapperMessage(val ticks: Tick, val message: JavaMidiMessage) : MidiMessage() {
+    override fun ticks(): Tick = ticks
 
-    override def isMeta: Boolean = message.isInstanceOf[JavaMetaMessage]
+    override fun toJava(): JavaMidiMessage = message
 
-    @varargs
-    def commandIn(jsm: JavaShortMessage, commands: Int*): Boolean = commands.contains(jsm.getCommand)
+    override fun isMeta(): Boolean = message is JavaMetaMessage
 
-    override def isNote: Boolean = message.isInstanceOf[JavaShortMessage] &&
-      commandIn(message.asInstanceOf[JavaShortMessage], JavaShortMessage.NOTE_OFF, JavaShortMessage.NOTE_ON)
+    fun commandIn(jsm: JavaShortMessage, vararg commands: Int): Boolean = commands.contains(jsm.command)
 
-    override def metaType: Option[MetaType] =
-      message match {
-        case metaMessage: JavaMetaMessage => Some(MessageDecoder.metaTypeOf(metaMessage))
-        case _ => None
-      }
-  }
+    override fun isNote(): Boolean = message is JavaShortMessage &&
+            commandIn(message, JavaShortMessage.NOTE_OFF, JavaShortMessage.NOTE_ON)
 
-  class MidiPort(private val receiver: Receiver) {
-    def panic(): Unit = {
-      val CONTROL_ALL_SOUND_OFF = 0x78
-      for (channel <- 0 until 16) {
-        receiver.send(new JavaShortMessage(JavaShortMessage.CONTROL_CHANGE | channel, CONTROL_ALL_SOUND_OFF, 0), -1)
-      }
+    override fun metaType(): MetaType? =
+            when (message) {
+                is JavaMetaMessage -> metaTypeOf(message)
+                else -> null
+            }
+}
+
+class MidiPort(private val receiver: Receiver) {
+    @Suppress("LocalVariableName")
+    fun panic() {
+        val CONTROL_ALL_SOUND_OFF = 0x78
+        for (channel in 0 until 16) {
+            receiver.send(JavaShortMessage(JavaShortMessage.CONTROL_CHANGE.or(channel), CONTROL_ALL_SOUND_OFF, 0), -1)
+        }
     }
 
-    def send(message: MidiMessage): Unit = {
-      receiver.send(message.toJava, -1)
+    fun send(message: MidiMessage) {
+        receiver.send(message.toJava(), -1)
     }
-  }
+}
 
-  class MidiFile(private val seq: Sequence) {
-    def ticksPerBeat: Int = seq.getResolution
+class MidiFile(private val seq: MidiSequence) {
+    fun ticksPerBeat(): Int = seq.resolution
 
-    def messages: Seq[MidiMessage] =
-      seq.getTracks
-        .flatMap(track =>
-          for (eventI <- 0 until track.size)
-            yield new JavaWrapperMessage(new Tick(track.get(eventI).getTick), track.get(eventI).getMessage))
-        .toList
-        .sortWith({ case (a, b) => a.ticks < b.ticks })
-  }
+    fun messages(): List<MidiMessage> =
+            seq.tracks
+                    .flatMap { track ->
+                        sequence {
+                            for (eventI in 0 until track.size()) {
+                                yield(JavaWrapperMessage(Tick(track.get(eventI).tick), track.get(eventI).message))
+                            }
+                        }.toList()
+                    }
+                    .sortedBy { m -> m.ticks }
+}
 
-  def openFile(path: String): MidiFile = openFile(new File(path))
+fun openFile(path: String): MidiFile = openFile(File(path))
 
-  def openFile(file: File): MidiFile = new MidiFile(MidiSystem.getSequence(file))
+fun openFile(file: File): MidiFile = MidiFile(MidiSystem.getSequence(file))
 
-  def openFile(is: InputStream): MidiFile = new MidiFile(MidiSystem.getSequence(is))
+fun openFile(stream: InputStream): MidiFile = MidiFile(MidiSystem.getSequence(stream))
 
-  def createDefaultSynthesizerPort: MidiPort = {
-    val synthesizer = MidiSystem.getSynthesizer
+fun createDefaultSynthesizerPort(): MidiPort {
+    val synthesizer = MidiSystem.getSynthesizer()
     synthesizer.open()
 
-    val receiver = synthesizer.getReceiver
-    new MidiPort(receiver)
-  }
+    val receiver = synthesizer.receiver
+    return MidiPort(receiver)
 }

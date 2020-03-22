@@ -1,51 +1,45 @@
 package midituutti.engine
 
-import java.io.InputStream
-
-import midituutti.midi
-import midituutti.midi.MessageDecoder.TimeSignature
 import midituutti.midi.Tick
-import org.scalatest.{FunSpec, Matchers}
+import midituutti.midi.TimeSignature
+import midituutti.midi.openFile
+import org.junit.Test
+import java.io.InputStream
+import kotlin.test.assertEquals
 
-class SongStructureSpec extends FunSpec with Matchers {
-
-  case class Expectation(timeSignature: TimeSignature, firstTick: Tick, eventCount: Int)
-
-  describe("Song structure parsing") {
+class SongStructureTest {
+    data class Expectation(val timeSignature: TimeSignature, val firstTick: Tick, val eventCount: Int)
 
     /**
-      * NOTE: This is a somewhat brittle test. Event counts and head event ticks have been checked with a Midi debugger.
-      */
-    it("should parse varying time signatures correctly") {
-      val midiFile = midi.openFile(testFile("measures-44-34-58.mid"))
-      val song = SongStructure.of(midiFile)
+     * NOTE: This is a somewhat brittle test. Event counts and head event ticks have been checked with a Midi debugger.
+     */
+    @Test
+    fun songStructureMatchesMidiFileContents() {
+        val midiFile = openFile(testFile("measures-44-34-58.mid"))
+        val song = SongStructure.of(midiFile)
 
-      val expectations = List(
-        Expectation(TimeSignature(4, 4), Tick(0), 18),
-        Expectation(TimeSignature(4, 4), Tick(1920), 8),
-        Expectation(TimeSignature(3, 4), Tick(3840), 7),
-        Expectation(TimeSignature(3, 4), Tick(5280), 6),
-        Expectation(TimeSignature(5, 8), Tick(6720), 11),
-        Expectation(TimeSignature(5, 8), Tick(7920), 10),
-        Expectation(TimeSignature(4, 4), Tick(9120), 10),
-      )
+        val expectations = listOf(
+                Expectation(TimeSignature(4, 4), Tick(0), 18),
+                Expectation(TimeSignature(4, 4), Tick(1920), 8),
+                Expectation(TimeSignature(3, 4), Tick(3840), 7),
+                Expectation(TimeSignature(3, 4), Tick(5280), 6),
+                Expectation(TimeSignature(5, 8), Tick(6720), 11),
+                Expectation(TimeSignature(5, 8), Tick(7920), 10),
+                Expectation(TimeSignature(4, 4), Tick(9120), 10)
+        )
 
-      song.measures should have length expectations.length
+        assertEquals(expectations.size, song.measures.size, "Number of measures")
 
-      song.measures.zip(expectations.indices.zip(expectations)).foreach {
-        case (measure, (index, expected)) =>
-          withClue(s"At measure $index, ") {
-            withClue("measure time signature ") {
-              measure.timeSignature shouldBe expected.timeSignature
+        song.measures.zip(expectations.indices.zip(expectations)).forEach { (measure, indexExpected) ->
+            run {
+                val (index, expected) = indexExpected
+                assertEquals(expected.timeSignature, measure.timeSignature, "Time signature at measure $index")
+                assertEquals(expected.firstTick, measure.events.first().ticks(), "First tick at measure $index")
+                assertEquals(expected.eventCount, measure.events.size, "Number of events at measure $index")
             }
-            withClue("first event ") {
-              measure.events.head.ticks shouldBe expected.firstTick
-            }
-            measure.events should have length expected.eventCount
-          }
-      }
+        }
     }
-  }
 
-  private def testFile(file: String): InputStream = getClass.getResourceAsStream(file)
+    @Suppress("SameParameterValue")
+    private fun testFile(file: String): InputStream = javaClass.getResourceAsStream(file)
 }

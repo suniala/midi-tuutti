@@ -1,210 +1,245 @@
 package midituutti
 
-import java.util.concurrent.ConcurrentLinkedQueue
+import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.control.ToggleButton
+import javafx.stage.FileChooser
+import midituutti.engine.ClickTrack
+import midituutti.engine.Engine
+import midituutti.engine.EngineTrack
+import midituutti.engine.MidiTrack
+import midituutti.engine.MutePlaybackEvent
+import midituutti.engine.PlayEvent
+import midituutti.engine.PlaybackEvent
+import midituutti.engine.TempoEvent
+import midituutti.engine.createEngine
+import midituutti.midi.Tempo
+import tornadofx.*
+import java.io.File
 
-import javafx.event.EventHandler
-import javafx.scene.input.KeyEvent
-import javafx.{concurrent => jfxc}
-import midituutti.engine.{ClickTrack, MidiTrack, createEngine}
-import scalafx.Includes._
-import scalafx.application.JFXApp.PrimaryStage
-import scalafx.application.{JFXApp, Platform}
-import scalafx.beans.binding.Bindings
-import scalafx.beans.property.{ObjectProperty, ReadOnlyProperty}
-import scalafx.concurrent.Task
-import scalafx.geometry.Insets
-import scalafx.scene.Scene
-import scalafx.scene.control.{Button, Label, ToggleButton}
-import scalafx.scene.input.KeyCode
-import scalafx.scene.layout.{HBox, VBox}
+val drumTrack = MidiTrack(10)
 
-object MidiTuutti extends JFXApp {
-  private val args = parameters.unnamed
-  private val filePath = if (args.nonEmpty) args.head else throw new IllegalArgumentException("must give path to midi file")
-  private val engine = createEngine(filePath, None, None)
-  private val drumTrack = MidiTrack(10)
-  private val songTempo = new ObjectProperty[Option[Double]](this, "songTempo", None)
-  private val tempoMultiplier = new ObjectProperty[Option[Double]](this, "tempoMultiplier", Some(1.0))
-  private val adjustedTempo = new ObjectProperty[Option[Double]](this, "adjustedTempo", None)
+class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
+class LoadEvent(val measures: Int) : FXEvent()
 
-  engine.mute(ClickTrack)
+class EngineController : Controller() {
+    private var engine: Engine? = null
 
-  type EngineEvent = () => Unit
-  private val engineEventQueue = new ConcurrentLinkedQueue[EngineEvent]()
+    fun openFile(file: File) {
+        engine?.quit()
+        val engineState = createEngine(file.absolutePath, null, null)
+        engine = engineState.engine
+        // Pass events from the engine thread to the ui thread via TornadoFX EventBus
+        engine().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
 
-  /**
-    * Reads engine events from a queue and applies them in the UI thread.
-    */
-  //noinspection ConvertExpressionToSAM
-  object EngineEventBridge extends Task(new jfxc.Task[Unit] {
-    override def call(): Unit = {
-      while (!isCancelled) {
-        var getMore = true
-        while (getMore) {
-          Option(engineEventQueue.poll()) match {
-            case Some(e: EngineEvent) => Platform.runLater(() => e.apply)
-            case _ => getMore = false
-          }
+        // Propagating current button positions to the new engine instance is a bit difficult so let's just
+        // reset everything.
+        engine().mute(ClickTrack)
+        engine().unMute(drumTrack)
+
+        fire(LoadEvent(engineState.measures))
+    }
+
+    fun togglePlay() {
+        if (engine().isPlaying()) engine().stop()
+        else engine().play()
+    }
+
+    fun toggleTrack(track: EngineTrack) {
+        if (engine().isMuted(track)) engine().unMute((track))
+        else engine().mute(track)
+    }
+
+    fun toggleClick() {
+        if (engine().isMuted(ClickTrack)) engine().unMute(ClickTrack)
+        else engine().mute(ClickTrack)
+    }
+
+    private fun engine(): Engine {
+        return engine ?: throw IllegalStateException()
+    }
+
+    fun jump(f: (Int) -> Int) = engine().jumpToBar(f)
+
+    fun updateTempoMultiplier(f: (Double) -> Double) = engine().updateTempoMultiplier(f)
+}
+
+class PlayerView : View("Player") {
+    val engineController: EngineController by param()
+    private var playButton: ToggleButton by singleAssign()
+    private var clickButton: ToggleButton by singleAssign()
+    private var drumMuteButton: ToggleButton by singleAssign()
+    private val songTempo = SimpleObjectProperty<Tempo?>()
+    private val tempoMultiplier = SimpleObjectProperty(1.0)
+    private val adjustedTempo = SimpleObjectProperty<Tempo?>()
+    private val measureCount = SimpleObjectProperty<Int?>()
+
+    override val root = vbox {
+        // Disable until a file is opened.
+        isDisable = true
+
+        playButton = togglebutton("Play") {
+            shortcut("Space") { fire() }
+            isSelected = false
+            isFocusTraversable = false
+            action {
+                engineController.togglePlay()
+            }
         }
-        Thread.sleep(10)
-      }
+        clickButton = togglebutton {
+            shortcut("C") { fire() }
+            val stateText = selectedProperty().stringBinding {
+                if (it == true) "Click On" else "Click Off"
+            }
+            textProperty().bind(stateText)
+            isSelected = false
+            isFocusTraversable = false
+            action {
+                engineController.toggleClick()
+            }
+        }
+        drumMuteButton = togglebutton {
+            shortcut("M") { fire() }
+            val stateText = selectedProperty().stringBinding {
+                if (it == true) "Drums Off" else "Drums On"
+            }
+            textProperty().bind(stateText)
+            isSelected = false
+            isFocusTraversable = false
+            action {
+                engineController.toggleTrack(drumTrack)
+            }
+        }
+        button("<<") {
+            shortcut("Home")
+            isFocusTraversable = false
+            action {
+                engineController.jump { 0 }
+            }
+        }
+        button("<") {
+            shortcut("A")
+            isFocusTraversable = false
+            action {
+                engineController.jump { m -> m - 1 }
+            }
+        }
+        button(">") {
+            shortcut("D")
+            isFocusTraversable = false
+            action {
+                engineController.jump { m -> m + 1 }
+            }
+        }
+        button("+") {
+            shortcut("W")
+            isFocusTraversable = false
+            action {
+                engineController.updateTempoMultiplier { m -> m + 0.01 }
+            }
+        }
+        button("o") {
+            isFocusTraversable = false
+            action {
+                engineController.updateTempoMultiplier { 1.0 }
+            }
+        }
+        button("-") {
+            shortcut("S")
+            isFocusTraversable = false
+            action {
+                engineController.updateTempoMultiplier { m -> m - 0.01 }
+            }
+        }
+        hbox {
+            label("Song tempo: ")
+            label(songTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+        hbox {
+            label("Tempo multiplier: ")
+            label(tempoMultiplier.stringBinding { m -> String.format("%.2f", m) }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+        hbox {
+            label("Actual tempo: ")
+            label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+        hbox {
+            label("Measure count: ")
+            label(measureCount.stringBinding { c -> c?.toString() ?: "" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+
+        subscribe<UiPlaybackEvent> { event ->
+            event.pe.let { playbackEvent ->
+                when (playbackEvent) {
+                    is PlayEvent -> playButton.selectedProperty().value = playbackEvent.playing
+                    is MutePlaybackEvent -> when (playbackEvent.track) {
+                        is ClickTrack -> clickButton.selectedProperty().value = !playbackEvent.muted
+                        is MidiTrack -> when (playbackEvent.track.channel) {
+                            10 -> drumMuteButton.selectedProperty().value = playbackEvent.muted
+                        }
+                    }
+                    is TempoEvent -> {
+                        songTempo.value = playbackEvent.tempo
+                        tempoMultiplier.value = playbackEvent.multiplier
+                        adjustedTempo.value = playbackEvent.adjustedTempo
+                    }
+                }
+            }
+        }
+
+        subscribe<LoadEvent> { event ->
+            run {
+                measureCount.value = event.measures
+                isDisable = false
+            }
+        }
     }
-  })
+}
 
-  val engineEventBridge = new Thread(EngineEventBridge)
-  engineEventBridge.start()
+class RootView : View("Root") {
+    private val engineController = EngineController()
 
-  engine.addTempoListener(event => engineEventQueue.add(() => {
-    songTempo.setValue(event.tempo.map(_.bpm))
-    tempoMultiplier.setValue(Some(event.multiplier))
-    adjustedTempo.setValue(event.adjustedTempo.map(_.bpm))
-  }))
+    private val playerView = find<PlayerView>(mapOf(PlayerView::engineController to engineController))
 
-  private val playButton: ToggleButton = new ToggleButton {
-    text = "Play"
-    selected = engine.isPlaying
-    onAction = handle {
-      if (engine.isPlaying) engine.stop()
-      else engine.play()
+    override val root = borderpane() {
+        top = menubar {
+            menu("File") {
+                item("Open", "Shortcut+O").action {
+                    val fileChooser = FileChooser().apply {
+                        title = "Open Midi File"
+                        extensionFilters + listOf(
+                                FileChooser.ExtensionFilter("Midi Files", "*.mid"),
+                                FileChooser.ExtensionFilter("All Files", "*.*")
+                        )
+                    }
+                    val selectedFile = fileChooser.showOpenDialog(primaryStage)
+                    if (selectedFile != null) {
+                        engineController.openFile(selectedFile)
+                    }
+                }
+                separator()
+                item("Quit")
+            }
+        }
+
+        bottom = playerView.root
     }
-    focusTraversable = false
-  }
+}
 
-  private val muteButton: ToggleButton = new ToggleButton {
-    text = "Mute drums"
-    selected = engine.isMuted(drumTrack)
-    onAction = handle {
-      if (engine.isMuted(drumTrack)) engine.unMute(drumTrack)
-      else engine.mute(drumTrack)
-    }
-    focusTraversable = false
-  }
+class MidiTuuttiApp : App(RootView::class)
 
-  private val clickButton: ToggleButton = new ToggleButton {
-    text = "Click"
-    selected = !engine.isMuted(ClickTrack)
-    onAction = handle {
-      if (engine.isMuted(ClickTrack)) engine.unMute(ClickTrack)
-      else engine.mute(ClickTrack)
-    }
-    focusTraversable = false
-  }
-
-  private val tempoMulUp: Button = new Button {
-    text = "+"
-    onAction = handle {
-      engine.updateTempoMultiplier(_ + 0.01)
-    }
-    focusTraversable = false
-  }
-
-  private val tempoMulDown: Button = new Button {
-    text = "-"
-    onAction = handle {
-      engine.updateTempoMultiplier(_ - 0.01)
-    }
-    focusTraversable = false
-  }
-
-  private val tempoMulReset: Button = new Button {
-    text = "o"
-    onAction = handle {
-      engine.updateTempoMultiplier(_ => 1.0)
-    }
-    focusTraversable = false
-  }
-
-  private val prevBarButton: Button = new Button {
-    text = "<"
-    onAction = handle {
-      engine.jumpToBar(_ - 1)
-    }
-    focusTraversable = false
-  }
-
-  private val nextBarButton: Button = new Button {
-    text = ">"
-    onAction = handle {
-      engine.jumpToBar(_ + 1)
-    }
-    focusTraversable = false
-  }
-
-  class TempoLabel(val property: ReadOnlyProperty[Option[Double], Option[Double]]) extends Label {
-    private val formatted = Bindings.createStringBinding(
-      () => property.value match {
-        case Some(t: Double) => t.formatted("%.2f")
-        case _ => "-----"
-      },
-      property
-    )
-
-    minWidth = 50
-    maxWidth = 50
-    text <== formatted
-  }
-
-  private val songTempoLabel = new TempoLabel(songTempo)
-  private val tempoMultiplierLabel = new TempoLabel(tempoMultiplier)
-  private val adjustedTempoLabel = new TempoLabel(adjustedTempo)
-
-  private val keyHandler: EventHandler[_ >: KeyEvent] = k => k.code match {
-    case KeyCode.Space => playButton.fire()
-    case KeyCode.M => muteButton.fire()
-    case KeyCode.W => tempoMulUp.fire()
-    case KeyCode.X => tempoMulReset.fire()
-    case KeyCode.S => tempoMulDown.fire()
-    case KeyCode.A => prevBarButton.fire()
-    case KeyCode.D => nextBarButton.fire()
-    case KeyCode.C => clickButton.fire()
-    case _ => // ignore
-  }
-
-  stage = new PrimaryStage {
-    title = "MidiTuutti"
-    scene = new Scene {
-      onKeyPressed = keyHandler
-      content = new VBox {
-        padding = Insets(10)
-        spacing = 10
-        children = Seq(
-          new HBox {
-            spacing = 10
-            children = Seq(
-              playButton,
-              muteButton,
-              clickButton,
-              tempoMulUp,
-              tempoMulDown,
-              prevBarButton,
-              nextBarButton
-            )
-          },
-          new HBox {
-            children = Seq(
-              new Label("Song tempo: "),
-              songTempoLabel
-            )
-          },
-          new HBox {
-            children = Seq(
-              new Label("Tempo multiplier: "),
-              tempoMultiplierLabel
-            )
-          },
-          new HBox {
-            children = Seq(
-              new Label("Adjusted tempo: "),
-              adjustedTempoLabel
-            )
-          }
-        )
-      }
-    }
-  }
-
-  override def stopApp(): Unit = {
-    EngineEventBridge.cancel
-    engine.quit()
-  }
+fun main(args: Array<String>) {
+    // TODO kotlin: how to get command line args to the view?
+    launch<MidiTuuttiApp>(args)
 }

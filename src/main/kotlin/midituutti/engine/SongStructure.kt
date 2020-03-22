@@ -1,101 +1,94 @@
 package midituutti.engine
 
-import midituutti.engine.ClickType.ClickType
-import midituutti.midi.MessageDecoder.{Accessors, TimeSignature}
-import midituutti.midi._
+import midituutti.midi.Accessors
+import midituutti.midi.MetaType
+import midituutti.midi.MidiFile
+import midituutti.midi.MidiMessage
+import midituutti.midi.Tick
+import midituutti.midi.TimeSignature
 
-import scala.annotation.tailrec
-import scala.collection.immutable
+class Measure(val start: Tick, val timeSignature: TimeSignature, val events: List<EngineEvent>)
 
-class Measure(val start: Tick, val timeSignature: TimeSignature, val events: Seq[EngineEvent])
+class SongStructure(val measures: List<Measure>) {
+    companion object {
+        fun of(midiFile: MidiFile): SongStructure = SongStructure(measures(midiFile))
 
-class SongStructure(val measures: Seq[Measure])
+        fun withClick(midiFile: MidiFile): SongStructure =
+                SongStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat()))
 
-object SongStructure {
+        private fun measures(midiFile: MidiFile): List<Measure> {
+            val timeSignatureMessage = midiFile.messages().find { m -> m.metaType() == MetaType.TimeSignature } as MidiMessage
+            return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, midiFile.messages())
+        }
 
-  def of(midiFile: MidiFile): SongStructure = new SongStructure(measures(midiFile))
+        private fun measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
+                Tick((ticksPerBeat * timeSignature.numerator / (timeSignature.denominator / 4).toLong()))
 
-  def withClick(midiFile: MidiFile): SongStructure =
-    new SongStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat))
+        private fun beatTicks(beat: Int, ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
+                Tick((ticksPerBeat * (beat - 1) / (timeSignature.denominator / (2 * timeSignature.denominator / 4).toLong())))
 
-  private def measures(midiFile: MidiFile) = {
-    val timeSignatureMessage = midiFile.messages.find(_.metaType.contains(MetaType.TimeSignature)).get
-    new Parser(midiFile.ticksPerBeat).parse(timeSignatureMessage, midiFile.messages)
-  }
+        private fun injectClick(measures: List<Measure>, ticksPerBeat: Int): List<Measure> {
+            fun clickType(eight: Int): ClickType {
+                return if (eight == 1) ClickType.One
+                else
+                    when (eight % 2) {
+                        1 -> ClickType.Quarter
+                        else -> ClickType.Eight
+                    }
+            }
 
-  private def measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
-    new Tick(ticksPerBeat * timeSignature.numerator / (timeSignature.denominator / 4))
+            fun measureClick(measure: Measure): Measure {
+                val eightCount = measure.timeSignature.numerator * 8 / measure.timeSignature.denominator
+                val clickEventTicks = (1..eightCount)
+                        .map { t -> measure.start + beatTicks(t, ticksPerBeat, measure.timeSignature) }
+                val clickEvents = clickEventTicks
+                        .mapIndexed { i, t -> ClickEvent(t, clickType(i + 1)) }
+                return Measure(measure.start, measure.timeSignature,
+                        (clickEvents + measure.events).sortedBy { e -> e.ticks() })
+            }
 
-  private def beatTicks(beat: Int, ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
-    new Tick(ticksPerBeat * (beat - 1) / (timeSignature.denominator / (2 * timeSignature.denominator / 4)))
-
-  private def injectClick(measures: Seq[Measure], ticksPerBeat: Int): Seq[Measure] = {
-    def clickType(eight: Int): ClickType = {
-      if (eight == 1) ClickType.One
-      else
-        eight % 2 match {
-          case 1 => ClickType.Quarter
-          case _ => ClickType.Eight
+            return measures.map { m -> measureClick(m) }
         }
     }
 
-    def measureClick(measure: Measure): Measure = {
-      val eightCount = measure.timeSignature.numerator * 8 / measure.timeSignature.denominator
-      val clickEventTicks = (1 to eightCount)
-        .map(measure.start + beatTicks(_, ticksPerBeat, measure.timeSignature))
-      val clickEvents = clickEventTicks
-        .zipWithIndex
-        .map({ case (t, i) => ClickEvent(t, clickType(i + 1)) })
-      new Measure(measure.start,
-        measure.timeSignature,
-        (clickEvents ++ measure.events).sortWith({ case (a, b) => a.ticks < b.ticks }))
-    }
+    private class Parser(val ticksPerBeat: Int) {
+        fun parse(ts: MidiMessage, messages: List<MidiMessage>): List<Measure> =
+                parseRec(emptyList(), ts.get(Accessors.timeSignatureAccessor), ts.ticks(), emptyList(), messages)
 
-    measures.map(measureClick)
-  }
-
-  private class Parser(ticksPerBeat: Int) {
-    def parse(ts: MidiMessage, messages: Seq[MidiMessage]): Seq[Measure] =
-      parseRec(Nil, ts.get(Accessors.timeSignatureAccessor), ts.ticks, Nil, messages)
-
-    private def withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean = {
-      val delta = message.ticks - measureStart
-      delta < measureTicks(ticksPerBeat, timeSignature)
-    }
-
-    private def nextMeasureStart(start: Tick, timeSignature: TimeSignature): Tick =
-      start + measureTicks(ticksPerBeat, timeSignature)
-
-    @tailrec
-    private def parseRec(acc: immutable.List[Measure],
-                         currTimeSignature: TimeSignature,
-                         measureStart: Tick,
-                         measure: immutable.List[EngineEvent],
-                         rem: Seq[MidiMessage]): Seq[Measure] = {
-      // TODO: get rid of this cons + reverse silliness
-      if (rem.isEmpty) {
-        (new Measure(measureStart, currTimeSignature, measure.reverse) :: acc).reverse
-      } else {
-        val message = rem.head
-
-        val nextTimeSignature =
-          if (message.metaType.contains(MetaType.TimeSignature)) {
-            message.get(Accessors.timeSignatureAccessor)
-          }
-          else currTimeSignature
-
-        if (withinMeasure(message, currTimeSignature, measureStart)) {
-          parseRec(acc, nextTimeSignature, measureStart, MessageEvent(message) :: measure, rem.tail)
-        } else {
-          parseRec(
-            new Measure(measureStart, currTimeSignature, measure.reverse) :: acc,
-            nextTimeSignature,
-            nextMeasureStart(measureStart, currTimeSignature),
-            MessageEvent(message) :: Nil,
-            rem.tail)
+        private fun withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean {
+            val delta = message.ticks() - measureStart
+            return delta < measureTicks(ticksPerBeat, timeSignature)
         }
-      }
-    }
-  }
 
+        private fun nextMeasureStart(start: Tick, timeSignature: TimeSignature): Tick =
+                start + measureTicks(ticksPerBeat, timeSignature)
+
+        private tailrec fun parseRec(acc: List<Measure>,
+                                     currTimeSignature: TimeSignature,
+                                     measureStart: Tick,
+                                     measure: List<EngineEvent>,
+                                     rem: List<MidiMessage>): List<Measure> {
+            if (rem.isEmpty()) {
+                return acc + Measure(measureStart, currTimeSignature, measure)
+            } else {
+                val message = rem.first()
+
+                val nextTimeSignature =
+                        if (message.metaType() == MetaType.TimeSignature) {
+                            message.get(Accessors.timeSignatureAccessor)
+                        } else currTimeSignature
+
+                return if (withinMeasure(message, currTimeSignature, measureStart)) {
+                    parseRec(acc, nextTimeSignature, measureStart, measure + MessageEvent(message), rem.drop(1))
+                } else {
+                    parseRec(
+                            acc + Measure(measureStart, currTimeSignature, measure),
+                            nextTimeSignature,
+                            nextMeasureStart(measureStart, currTimeSignature),
+                            listOf(MessageEvent(message)),
+                            rem.drop(1))
+                }
+            }
+        }
+    }
 }

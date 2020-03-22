@@ -1,3 +1,5 @@
+.gradle/
 .idea/
+build/
 project/target/
 target/
