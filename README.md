@@ -3,6 +3,7 @@
 A midi player for playing backing tracks while practicing.
 
 ## Current features:
+* Minimum effort UI (for the programmer, not the user)
 * Tempo multiplier
 * Jump to next/prev measure
 * Mute drums (channel 10)
