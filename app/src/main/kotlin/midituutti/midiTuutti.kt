@@ -185,7 +185,7 @@ class PlayerView : View("Player") {
                     is PlayEvent -> playButton.selectedProperty().value = playbackEvent.playing
                     is MutePlaybackEvent -> when (playbackEvent.track) {
                         is ClickTrack -> clickButton.selectedProperty().value = !playbackEvent.muted
-                        is MidiTrack -> when (playbackEvent.track.channel) {
+                        is MidiTrack -> when ((playbackEvent.track as MidiTrack).channel) {
                             10 -> drumMuteButton.selectedProperty().value = playbackEvent.muted
                         }
                     }
