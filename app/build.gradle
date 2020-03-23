@@ -5,6 +5,7 @@ mainClassName = 'midituutti.MidiTuuttiKt'
 defaultTasks 'run'
 
 dependencies {
+    compile project(':midi')
     compile 'no.tornado:tornadofx:1.7.16'
 }
 
