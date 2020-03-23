@@ -1,0 +1,14 @@
+apply plugin: 'application'
+
+mainClassName = 'midituutti.MidiTuuttiKt'
+
+defaultTasks 'run'
+
+dependencies {
+    compile 'no.tornado:tornadofx:1.7.16'
+}
+
+jar {
+    manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+}
