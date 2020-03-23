@@ -1,11 +1,11 @@
 buildscript {
-  ext.kotlin_version = '1.3.41'
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-  }
+    ext.kotlin_version = '1.3.41'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
 }
 
 apply plugin: 'kotlin'
@@ -16,25 +16,66 @@ mainClassName = 'midituutti.MidiTuuttiKt'
 defaultTasks 'run'
 
 repositories {
-  mavenCentral()
+    mavenCentral()
+}
+
+configurations {
+    engine
+    midi
+}
+
+sourceSets {
+    engine.kotlin {
+        srcDir 'src/engine/kotlin'
+    }
+    midi.kotlin {
+        srcDir 'src/midi/kotlin'
+    }
 }
 
 dependencies {
-  compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  compile 'no.tornado:tornadofx:1.7.16'
-  testCompile 'junit:junit:4.11'
-  testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    midiCompile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    engineCompile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    engineCompile project(path: ':', configuration: 'midi')
+
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile 'no.tornado:tornadofx:1.7.16'
+    compile project(path: ':', configuration: 'engine')
+    compile project(path: ':', configuration: 'midi')
+    testCompile 'junit:junit:4.11'
+    testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+}
+
+task engineJar(type: Jar) {
+    classifier = 'engine'
+    from sourceSets.engine.output
+}
+
+task midiJar(type: Jar) {
+    classifier = 'midi'
+    from sourceSets.midi.output
+}
+
+assemble {
+    dependsOn engineJar
+    dependsOn midiJar
+}
+
+artifacts {
+    engine engineJar
+    midi midiJar
 }
 
 compileKotlin {
-  kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 jar {
-  manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
-  from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
 }
 
 task wrapper(type: Wrapper) {
-  gradleVersion = "4.10.2"
+    gradleVersion = "4.10.2"
 }
