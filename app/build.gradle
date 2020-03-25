@@ -10,6 +10,7 @@ dependencies {
 }
 
 jar {
+    archivesBaseName = 'midi-tuutti'
     manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
 }
