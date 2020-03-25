@@ -4,7 +4,7 @@ import javax.sound.midi.MetaMessage as JavaMetaMessage
 import javax.sound.midi.ShortMessage as JavaShortMessage
 
 /**
- * Convenience function for bitwise and between a Byte and an Int
+ * Convenience function for "bitwise and" between a Byte and an Int
  */
 private infix fun Byte.and(other: Int): Int = this.toInt().and(other)
 
@@ -28,9 +28,6 @@ interface ShortAccessor<T> {
     fun getShort(message: JavaShortMessage): T
 }
 
-/**
- * TODO: might would make sense for these to return nullables
- */
 object Accessors {
     val noneAccessor: MetaAccessor<Nothing?> = object : MetaAccessor<Nothing?> {
         override fun getMeta(message: JavaMetaMessage): Nothing? {

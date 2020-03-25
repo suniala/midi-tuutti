@@ -11,7 +11,7 @@ import javax.sound.midi.Sequence as MidiSequence
 import javax.sound.midi.ShortMessage as JavaShortMessage
 
 /**
- * Thin Scala wrappers for the Java MidiSystem.
+ * Thin wrappers for the Java MidiSystem.
  */
 
 class Tempo(val bpm: Double) {
@@ -54,7 +54,6 @@ class OutputTimestamp private constructor(private val asMicros: Long) {
     }
 }
 
-// TODO: kotlin, note that accessor was dropped
 enum class MetaType {
     Tempo {
         override val label: String
@@ -86,7 +85,7 @@ sealed class MidiMessage {
     fun <T> get(accessor: MetaAccessor<T>): T = accessor.get(this)
 
     override fun toString(): String =
-            "MidiMessage(meta=${isMeta()}, metaType=${metaType()}, " // TODO: kotlin value=${metaType()?.let { t -> get(t.accessor) }}"
+            "MidiMessage(meta=${isMeta()}, metaType=${metaType()}"
 }
 
 data class NoteMessage(val ticks: Tick, val note: Note) : MidiMessage() {
