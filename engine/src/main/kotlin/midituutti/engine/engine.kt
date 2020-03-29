@@ -224,24 +224,30 @@ private class Player(val playControl: PlayControl,
                         }
                     }
 
-                    when (event) {
+                    val midiMessage: MidiMessage? = when (event) {
                         is MessageEvent ->
                             if (event.message.metaType() == MetaType.Tempo) {
                                 tempo = Accessors.tempoAccessor.get(event.message)
                                 playerListeners.forEach { pl -> pl.tempoChanged() }
+                                null
                             } else {
-                                synthesizerPort.send(muteOrPass(mutedTracks, event.message))
+                                muteOrPass(mutedTracks, event.message)
                             }
                         is ClickEvent ->
                             if (!mutedTracks.contains(ClickTrack)) {
                                 with(event) {
                                     when (click) {
-                                        ClickType.One -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100)))
-                                        ClickType.Quarter -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100)))
-                                        ClickType.Eight -> synthesizerPort.send(NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100)))
+                                        ClickType.One -> NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100))
+                                        ClickType.Quarter -> NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100))
+                                        ClickType.Eight -> NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100))
                                     }
                                 }
+                            } else {
+                                null
                             }
+                    }
+                    if (midiMessage != null) {
+                        synthesizerPort.send(midiMessage)
                     }
 
                     prevTicks = event.ticks()
