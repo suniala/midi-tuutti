@@ -30,7 +30,7 @@ data class Tick(val tick: Long) : Comparable<Tick> {
     }
 
     override fun toString(): String {
-        return "Tick($tick)"
+        return "$tick"
     }
 }
 
@@ -40,6 +40,10 @@ class OutputTimestamp private constructor(private val asMicros: Long) {
     fun millisPart(): Long = (asMicros / 1000.0).toLong()
 
     fun nanosPart(): Int = ((asMicros - millisPart() * 1000) * 1000).toInt()
+
+    operator fun minus(other: OutputTimestamp) = ofMicros(asMicros - other.asMicros)
+
+    fun toNanos(): Long = asMicros * 1000
 
     companion object {
         fun ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp {
@@ -85,7 +89,7 @@ sealed class MidiMessage {
     fun <T> get(accessor: MetaAccessor<T>): T = accessor.get(this)
 
     override fun toString(): String =
-            "MidiMessage(meta=${isMeta()}, metaType=${metaType()}"
+            "MidiMessage(isMeta=${isMeta()}, metaType=${metaType()})"
 }
 
 data class NoteMessage(val ticks: Tick, val note: Note) : MidiMessage() {
@@ -106,6 +110,9 @@ data class NoteMessage(val ticks: Tick, val note: Note) : MidiMessage() {
     override fun isNote(): Boolean = true
 
     override fun metaType(): MetaType? = null
+
+    override fun toString(): String =
+            "NoteMessage(ticks=$ticks, note=$note)"
 }
 
 private class JavaWrapperMessage(val ticks: Tick, val message: JavaMidiMessage) : MidiMessage() {
@@ -125,6 +132,9 @@ private class JavaWrapperMessage(val ticks: Tick, val message: JavaMidiMessage) 
                 is JavaMetaMessage -> metaTypeOf(message)
                 else -> null
             }
+
+    override fun toString(): String =
+            "JavaWrapperMessage(ticks=$ticks, isNote=${isNote()}, isMeta=${isMeta()})"
 }
 
 class MidiPort(private val receiver: Receiver) {

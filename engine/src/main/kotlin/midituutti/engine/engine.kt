@@ -208,7 +208,9 @@ private class Player(val playControl: PlayControl,
     override fun run() {
         while (true) {
             playControl.waitForPlay()
+            val playStartNs = System.nanoTime()
             var prevTicks: Tick? = null
+            var prevEventCalculatedNs: Long = playStartNs
             println("player: playing")
 
             try {
@@ -217,6 +219,7 @@ private class Player(val playControl: PlayControl,
 
                     val ticksDelta = event.ticks() - (prevTicks ?: event.ticks())
                     val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
+                    val evenCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
 
                     if (timestampDelta != null) {
                         if (timestampDelta.nonNil()) {
@@ -249,8 +252,11 @@ private class Player(val playControl: PlayControl,
                     if (midiMessage != null) {
                         synthesizerPort.send(midiMessage)
                     }
+                    val isMeasureStart = event is ClickEvent && (event.click == ClickType.One)
+                    EngineTraceLogger.trace(playStartNs, evenCalculatedNs, event.ticks(), timestampDelta, midiMessage, isMeasureStart)
 
                     prevTicks = event.ticks()
+                    prevEventCalculatedNs = evenCalculatedNs
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
@@ -265,11 +271,13 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
     override fun isPlaying(): Boolean = playControl.isPlaying()
 
     override fun play() {
+        EngineTraceLogger.start()
         playControl.play()
         notify(PlayEvent(true))
     }
 
     override fun stop() {
+        EngineTraceLogger.stop()
         if (playControl.isPlaying()) {
             signalStop()
         }
@@ -346,3 +354,6 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
 
     return EngineInitialState(playerEngine, song.measures.size)
 }
+
+
+

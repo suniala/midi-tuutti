@@ -30,3 +30,5 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 [Kotlin](https://kotlinlang.org/) and [TornadoFX](https://github.com/edvin/tornadofx).
 
 Start with: `./gradlew run`.
+
+Enable engine trace logging with: `-Dmidituutti.engine.trace=true`
