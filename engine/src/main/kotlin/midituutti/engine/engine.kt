@@ -14,7 +14,7 @@ import midituutti.midi.Tick
 import midituutti.midi.createDefaultSynthesizerPort
 import midituutti.midi.openFile
 import java.util.concurrent.BlockingQueue
-import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.LinkedBlockingQueue
 
 private fun muteOrPass(mutedTracks: Set<EngineTrack>, message: MidiMessage): MidiMessage =
         if (message.isNote()) {
@@ -46,6 +46,10 @@ enum class ClickType {
 }
 
 data class ClickEvent(private val ticks: Tick, val click: ClickType) : EngineEvent() {
+    override fun ticks(): Tick = ticks
+}
+
+data class MeasureEvent(private val ticks: Tick, val measure: Int) : EngineEvent() {
     override fun ticks(): Tick = ticks
 }
 
@@ -92,9 +96,10 @@ interface SingleNoteHitEngine {
     fun quit()
 }
 
-private class PlayControl {
-
+private class PlayControl : PlayerListener {
     private val waitLock = Object()
+
+    private var currentMeasure = 1
 
     @Volatile
     private var playing = false
@@ -120,6 +125,19 @@ private class PlayControl {
             }
         }
     }
+
+    fun currentMeasure() = currentMeasure
+
+    fun setCurrentMeasure(measure: Int) {
+        currentMeasure = measure
+    }
+
+    override fun tempoChanged() { /* no-op */
+    }
+
+    override fun atMeasureStart(measure: Int) {
+        currentMeasure = measure
+    }
 }
 
 fun createSingeNoteHitEngine(): SingleNoteHitEngine {
@@ -134,10 +152,10 @@ fun createSingeNoteHitEngine(): SingleNoteHitEngine {
 
 private interface PlayerListener {
     fun tempoChanged()
+    fun atMeasureStart(measure: Int)
 }
 
 private class Reader(val playControl: PlayControl,
-                     @Volatile var measureCursor: Int,
                      @Volatile var from: Int,
                      @Volatile var to: Int,
                      val queue: BlockingQueue<EngineEvent>,
@@ -150,22 +168,25 @@ private class Reader(val playControl: PlayControl,
         while (true) {
             playControl.waitForPlay()
             println("reader: playing")
+            var startFrom = playControl.currentMeasure()
 
             try {
                 while (playControl.isPlaying()) {
-                    val startFrom = measureCursor
                     println("reader: reading $startFrom - $to")
                     for (readerCursor in startFrom..to) {
-                        println("reader: at $readerCursor")
-                        measureCursor = readerCursor
                         val measure = song.measures[readerCursor - 1]
+                        queue.put(MeasureEvent(measure.start, readerCursor))
+
                         for (event in measure.events) {
                             queue.put(event)
                         }
                     }
-                    measureCursor = from
+
+                    // Start from beginning again
+                    startFrom = from
                 }
             } catch (e: InterruptedException) {
+                queue.clear()
                 println("reader: stop playing")
             }
         }
@@ -227,15 +248,23 @@ private class Player(val playControl: PlayControl,
                         }
                     }
 
-                    val midiMessage: MidiMessage? = when (event) {
+                    when (event) {
                         is MessageEvent ->
                             if (event.message.metaType() == MetaType.Tempo) {
                                 tempo = Accessors.tempoAccessor.get(event.message)
                                 playerListeners.forEach { pl -> pl.tempoChanged() }
-                                null
-                            } else {
-                                muteOrPass(mutedTracks, event.message)
                             }
+                        is MeasureEvent -> {
+                            println("player: at ${event.measure}")
+                            playerListeners.forEach { pl -> pl.atMeasureStart(event.measure) }
+                        }
+                        else -> {
+                        }
+                    }
+
+                    val midiMessage: MidiMessage? = when (event) {
+                        is MessageEvent ->
+                            muteOrPass(mutedTracks, event.message)
                         is ClickEvent ->
                             if (!mutedTracks.contains(ClickTrack)) {
                                 with(event) {
@@ -248,12 +277,14 @@ private class Player(val playControl: PlayControl,
                             } else {
                                 null
                             }
+                        else -> null
                     }
                     if (midiMessage != null) {
                         synthesizerPort.send(midiMessage)
                     }
-                    val isMeasureStart = event is ClickEvent && (event.click == ClickType.One)
-                    EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage, isMeasureStart)
+
+                    EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage,
+                            if (event is MeasureEvent) event.measure else null)
 
                     prevTicks = event.ticks()
                     prevEventCalculatedNs = eventCalculatedNs
@@ -318,6 +349,10 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
                 playbackListeners.forEach { listener -> listener(event) }
             }
 
+    override fun atMeasureStart(measure: Int) {
+        /* no-op */
+    }
+
     override fun updateTempoMultiplier(f: (Double) -> Double) {
         player.tempoMultiplier = minOf(maxOf(f(player.tempoMultiplier), 0.1), 3.0)
         tempoChanged()
@@ -325,7 +360,7 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
 
     override fun jumpToBar(f: (Int) -> Int) {
         stop()
-        reader.measureCursor = minOf(maxOf(f(reader.measureCursor), 1), song.measures.size)
+        playControl.setCurrentMeasure(minOf(maxOf(f(playControl.currentMeasure()), 1), song.measures.size))
         play()
     }
 
@@ -339,14 +374,15 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val midiFile = openFile(filePath)
     val song = SongStructure.withClick(midiFile)
 
-    val queue = SynchronousQueue<EngineEvent>()
+    val queue = LinkedBlockingQueue<EngineEvent>(1000)
 
     val playControl = PlayControl()
+
     val player = Player(playControl, 1.0, queue, midiFile, synthesizerPort)
+    player.addPlayerListener(playControl)
     player.start()
 
-    val reader = Reader(playControl, initialFrom ?: 1, initialFrom ?: 1,
-            initialTo ?: song.measures.size, queue, song)
+    val reader = Reader(playControl, initialFrom ?: 1, initialTo ?: song.measures.size, queue, song)
     reader.start()
 
     val playerEngine = PlayerEngine(song, playControl, player, reader)

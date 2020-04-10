@@ -50,18 +50,18 @@ object EngineTraceLogger {
     private val traceEnabled = System.getProperty("midituutti.engine.trace") == "true"
     private val queue = LinkedBlockingQueue<LogMessage>(1000 * 1000)
     private var previous: LogMessage? = null
-    private var measureCount = 0
+    private var currentMeasure = 1
     private var flushJob: Job? = null
 
     fun trace(playStartNs: Long, expectedTimestampNs: Long, ticks: Tick, expectedDeltaTs: OutputTimestamp?,
-              midiMessage: MidiMessage?, isMeasureStart: Boolean) {
+              midiMessage: MidiMessage?, startOfMeasureNo: Int?) {
         if (flushJob?.isActive == true && traceEnabled) {
-            measureCount += if (isMeasureStart) 1 else 0
+            currentMeasure = startOfMeasureNo ?: currentMeasure
             val timestampNs = System.nanoTime() - playStartNs
             val actualDeltaNs = previous?.let { p -> timestampNs - p.timestampNs }
             val expectedDeltaNs = if (previous != null && expectedDeltaTs != null) expectedDeltaTs.toNanos() else null
             val logMessage = LogMessage(ticks, timestampNs, actualDeltaNs, expectedDeltaNs,
-                    expectedTimestampNs - playStartNs, midiMessage, measureCount)
+                    expectedTimestampNs - playStartNs, midiMessage, currentMeasure)
             queue.put(logMessage)
             previous = logMessage
         }
@@ -69,7 +69,7 @@ object EngineTraceLogger {
 
     fun start() {
         val outputPath = "engine-trace-${System.currentTimeMillis()}.csv"
-        measureCount = 0
+        currentMeasure = 0
 
         if (traceEnabled) {
             flushRows(sequenceOf(RowFormatter.heading()), outputPath)
