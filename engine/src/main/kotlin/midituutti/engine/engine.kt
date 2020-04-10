@@ -219,7 +219,7 @@ private class Player(val playControl: PlayControl,
 
                     val ticksDelta = event.ticks() - (prevTicks ?: event.ticks())
                     val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
-                    val evenCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
+                    val eventCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
 
                     if (timestampDelta != null) {
                         if (timestampDelta.nonNil()) {
@@ -253,10 +253,10 @@ private class Player(val playControl: PlayControl,
                         synthesizerPort.send(midiMessage)
                     }
                     val isMeasureStart = event is ClickEvent && (event.click == ClickType.One)
-                    EngineTraceLogger.trace(playStartNs, evenCalculatedNs, event.ticks(), timestampDelta, midiMessage, isMeasureStart)
+                    EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage, isMeasureStart)
 
                     prevTicks = event.ticks()
-                    prevEventCalculatedNs = evenCalculatedNs
+                    prevEventCalculatedNs = eventCalculatedNs
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
