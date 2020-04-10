@@ -158,7 +158,7 @@ private interface PlayerListener {
 private class Reader(val playControl: PlayControl,
                      @Volatile var from: Int,
                      @Volatile var to: Int,
-                     val queue: BlockingQueue<EngineEvent>,
+                     val queue: BlockingQueue<List<EngineEvent>>,
                      val song: SongStructure) : Thread() {
     init {
         isDaemon = true
@@ -175,10 +175,24 @@ private class Reader(val playControl: PlayControl,
                     println("reader: reading $startFrom - $to")
                     for (readerCursor in startFrom..to) {
                         val measure = song.measures[readerCursor - 1]
-                        queue.put(MeasureEvent(measure.start, readerCursor))
+
+                        var chunk = arrayListOf<EngineEvent>()
+                        chunk.add(MeasureEvent(measure.start, readerCursor))
 
                         for (event in measure.events) {
-                            queue.put(event)
+                            if (chunk.isEmpty()) {
+                                chunk.add(event)
+                            } else {
+                                if (chunk.first().ticks() == event.ticks()) {
+                                    chunk.add(event)
+                                } else {
+                                    queue.put(chunk)
+                                    chunk = arrayListOf(event)
+                                }
+                            }
+                        }
+                        if (chunk.isNotEmpty()) {
+                            queue.put(chunk)
                         }
                     }
 
@@ -195,7 +209,7 @@ private class Reader(val playControl: PlayControl,
 
 private class Player(val playControl: PlayControl,
                      var tempoMultiplier: Double,
-                     val queue: BlockingQueue<EngineEvent>,
+                     val queue: BlockingQueue<List<EngineEvent>>,
                      val midiFile: MidiFile,
                      val synthesizerPort: MidiPort) : Thread() {
     val playerListeners = mutableListOf<PlayerListener>()
@@ -236,9 +250,10 @@ private class Player(val playControl: PlayControl,
 
             try {
                 while (playControl.isPlaying()) {
-                    val event = queue.take()
+                    val chunk = queue.take()
+                    val chunkTicks = chunk.first().ticks()
 
-                    val ticksDelta = event.ticks() - (prevTicks ?: event.ticks())
+                    val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
                     val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
                     val eventCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
 
@@ -248,51 +263,57 @@ private class Player(val playControl: PlayControl,
                         }
                     }
 
-                    when (event) {
-                        is MessageEvent ->
-                            if (event.message.metaType() == MetaType.Tempo) {
-                                tempo = Accessors.tempoAccessor.get(event.message)
-                                playerListeners.forEach { pl -> pl.tempoChanged() }
-                            }
-                        is MeasureEvent -> {
-                            println("player: at ${event.measure}")
-                            playerListeners.forEach { pl -> pl.atMeasureStart(event.measure) }
-                        }
-                        else -> {
-                        }
+                    for (event in chunk) {
+                        handleEvent(event, playStartNs, eventCalculatedNs, timestampDelta)
                     }
 
-                    val midiMessage: MidiMessage? = when (event) {
-                        is MessageEvent ->
-                            muteOrPass(mutedTracks, event.message)
-                        is ClickEvent ->
-                            if (!mutedTracks.contains(ClickTrack)) {
-                                with(event) {
-                                    when (click) {
-                                        ClickType.One -> NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100))
-                                        ClickType.Quarter -> NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100))
-                                        ClickType.Eight -> NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100))
-                                    }
-                                }
-                            } else {
-                                null
-                            }
-                        else -> null
-                    }
-                    if (midiMessage != null) {
-                        synthesizerPort.send(midiMessage)
-                    }
-
-                    EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage,
-                            if (event is MeasureEvent) event.measure else null)
-
-                    prevTicks = event.ticks()
+                    prevTicks = chunkTicks
                     prevEventCalculatedNs = eventCalculatedNs
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
             }
         }
+    }
+
+    private fun handleEvent(event: EngineEvent, playStartNs: Long, eventCalculatedNs: Long, timestampDelta: OutputTimestamp?) {
+        when (event) {
+            is MessageEvent ->
+                if (event.message.metaType() == MetaType.Tempo) {
+                    tempo = Accessors.tempoAccessor.get(event.message)
+                    playerListeners.forEach { pl -> pl.tempoChanged() }
+                }
+            is MeasureEvent -> {
+                println("player: at ${event.measure}")
+                playerListeners.forEach { pl -> pl.atMeasureStart(event.measure) }
+            }
+            else -> {
+            }
+        }
+
+        val midiMessage: MidiMessage? = when (event) {
+            is MessageEvent ->
+                muteOrPass(mutedTracks, event.message)
+            is ClickEvent ->
+                if (!mutedTracks.contains(ClickTrack)) {
+                    with(event) {
+                        when (click) {
+                            ClickType.One -> NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100))
+                            ClickType.Quarter -> NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100))
+                            ClickType.Eight -> NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100))
+                        }
+                    }
+                } else {
+                    null
+                }
+            else -> null
+        }
+        if (midiMessage != null) {
+            synthesizerPort.send(midiMessage)
+        }
+
+        EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage,
+                if (event is MeasureEvent) event.measure else null)
     }
 }
 
@@ -374,7 +395,7 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val midiFile = openFile(filePath)
     val song = SongStructure.withClick(midiFile)
 
-    val queue = LinkedBlockingQueue<EngineEvent>(1000)
+    val queue = LinkedBlockingQueue<List<EngineEvent>>(1000)
 
     val playControl = PlayControl()
 
