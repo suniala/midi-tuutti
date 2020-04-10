@@ -9,6 +9,7 @@ import javax.sound.midi.MetaMessage as JavaMetaMessage
 import javax.sound.midi.MidiMessage as JavaMidiMessage
 import javax.sound.midi.Sequence as MidiSequence
 import javax.sound.midi.ShortMessage as JavaShortMessage
+import javax.sound.midi.SysexMessage as JavaSysexMessage
 
 /**
  * Thin wrappers for the Java MidiSystem.
@@ -133,8 +134,15 @@ private class JavaWrapperMessage(val ticks: Tick, val message: JavaMidiMessage) 
                 else -> null
             }
 
+    fun javaMessageType(): String = when (message) {
+        is JavaShortMessage -> "short"
+        is JavaMetaMessage -> "meta"
+        is JavaSysexMessage -> "sysex"
+        else -> "unknown"
+    }
+
     override fun toString(): String =
-            "JavaWrapperMessage(ticks=$ticks, isNote=${isNote()}, isMeta=${isMeta()})"
+            "JavaWrapperMessage(ticks=$ticks, javaMessageType=${javaMessageType()} isNote=${isNote()})"
 }
 
 class MidiPort(private val receiver: Receiver) {
