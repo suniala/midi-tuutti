@@ -218,6 +218,7 @@ class RootView : View("Root") {
                 item("Open", "Shortcut+O").action {
                     val fileChooser = FileChooser().apply {
                         title = "Open Midi File"
+                        initialDirectory = System.getProperty("midituutti.initialDir")?.let { File(it) }
                         extensionFilters + listOf(
                                 FileChooser.ExtensionFilter("Midi Files", "*.mid"),
                                 FileChooser.ExtensionFilter("All Files", "*.*")
