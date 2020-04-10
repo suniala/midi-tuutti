@@ -1,7 +1,9 @@
 package midituutti.engine
 
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import midituutti.midi.MidiMessage
 import midituutti.midi.OutputTimestamp
@@ -47,13 +49,13 @@ private object RowFormatter {
 object EngineTraceLogger {
     private val traceEnabled = System.getProperty("midituutti.engine.trace") == "true"
     private val queue = LinkedBlockingQueue<LogMessage>(1000 * 1000)
-    private var running = false
     private var previous: LogMessage? = null
     private var measureCount = 0
+    private var flushJob: Job? = null
 
     fun trace(playStartNs: Long, expectedTimestampNs: Long, ticks: Tick, expectedDeltaTs: OutputTimestamp?,
               midiMessage: MidiMessage?, isMeasureStart: Boolean) {
-        if (running && traceEnabled) {
+        if (flushJob?.isActive == true && traceEnabled) {
             measureCount += if (isMeasureStart) 1 else 0
             val timestampNs = System.nanoTime() - playStartNs
             val actualDeltaNs = previous?.let { p -> timestampNs - p.timestampNs }
@@ -68,13 +70,12 @@ object EngineTraceLogger {
     fun start() {
         val outputPath = "engine-trace-${System.currentTimeMillis()}.csv"
         measureCount = 0
-        running = true
 
         if (traceEnabled) {
             flushRows(sequenceOf(RowFormatter.heading()), outputPath)
 
-            GlobalScope.launch {
-                while (running) {
+            flushJob = GlobalScope.launch {
+                while (isActive) {
                     delay(1000)
                     flush(outputPath)
                 }
@@ -83,8 +84,8 @@ object EngineTraceLogger {
     }
 
     fun stop() {
-        running = false
         previous = null
+        flushJob?.cancel()
     }
 
     private fun flush(outputPath: String) {
