@@ -24,6 +24,7 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 * Select click sounds
 * Set a constant tempo (instead of multiplying the song's tempo)
 * Mixer, maybe just a volume slider for each channel
+* Keep track of instrument changes and reset instruments when jumping between measures
 * UI aesthetics
 
 ## Development
