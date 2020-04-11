@@ -47,6 +47,8 @@ class OutputTimestamp private constructor(private val asMicros: Long) {
     fun toNanos(): Long = asMicros * 1000
 
     companion object {
+        val NIL = OutputTimestamp(0)
+
         fun ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp {
             val ticksPerSecond = resolution * (tempo.bpm / 60.0)
             val tickSize = 1.0 / ticksPerSecond

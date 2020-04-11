@@ -267,7 +267,11 @@ private class Player(val playControl: PlayControl,
                     }
 
                     for (event in chunk) {
-                        handleEvent(event, playStartNs, eventCalculatedNs, timestampDelta)
+                        val eventMidiMessage: MidiMessage? = handleEvent(event)
+
+                        EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(),
+                                if (event == chunk.first()) timestampDelta else OutputTimestamp.NIL,
+                                eventMidiMessage, if (event is MeasureEvent) event.measure else null)
                     }
 
                     prevTicks = chunkTicks
@@ -279,7 +283,7 @@ private class Player(val playControl: PlayControl,
         }
     }
 
-    private fun handleEvent(event: EngineEvent, playStartNs: Long, eventCalculatedNs: Long, timestampDelta: OutputTimestamp?) {
+    private fun handleEvent(event: EngineEvent): MidiMessage? {
         when (event) {
             is MessageEvent ->
                 if (event.message.metaType() == MetaType.Tempo) {
@@ -315,8 +319,7 @@ private class Player(val playControl: PlayControl,
             synthesizerPort.send(midiMessage)
         }
 
-        EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(), timestampDelta, midiMessage,
-                if (event is MeasureEvent) event.measure else null)
+        return midiMessage
     }
 }
 
