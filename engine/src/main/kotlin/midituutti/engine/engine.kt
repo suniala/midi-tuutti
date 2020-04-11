@@ -256,10 +256,13 @@ private class Player(val playControl: PlayControl,
                     val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
                     val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
                     val eventCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
+                    val currentNs = System.nanoTime()
 
-                    if (timestampDelta != null) {
-                        if (timestampDelta.nonNil()) {
-                            sleep(timestampDelta.millisPart(), timestampDelta.nanosPart())
+                    (eventCalculatedNs - currentNs).let { timeToEventCalculatedNs ->
+                        if (timeToEventCalculatedNs > 0) {
+                            val millis = timeToEventCalculatedNs / 1000 / 1000
+                            val nanos = (timeToEventCalculatedNs - (millis * 1000 * 1000)).toInt()
+                            sleep(millis, nanos)
                         }
                     }
 
