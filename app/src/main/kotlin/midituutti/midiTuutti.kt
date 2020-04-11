@@ -6,6 +6,7 @@ import javafx.stage.FileChooser
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
 import midituutti.engine.EngineTrack
+import midituutti.engine.MeasurePlaybackEvent
 import midituutti.engine.MidiTrack
 import midituutti.engine.MutePlaybackEvent
 import midituutti.engine.PlayEvent
@@ -71,6 +72,7 @@ class PlayerView : View("Player") {
     private val songTempo = SimpleObjectProperty<Tempo?>()
     private val tempoMultiplier = SimpleObjectProperty(1.0)
     private val adjustedTempo = SimpleObjectProperty<Tempo?>()
+    private val currentMeasure = SimpleObjectProperty<Int?>()
     private val measureCount = SimpleObjectProperty<Int?>()
 
     override val root = vbox {
@@ -172,6 +174,13 @@ class PlayerView : View("Player") {
             }
         }
         hbox {
+            label("Current measure: ")
+            label(currentMeasure.stringBinding { c -> c?.toString() ?: "" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+        hbox {
             label("Measure count: ")
             label(measureCount.stringBinding { c -> c?.toString() ?: "" }) {
                 minWidth = 50.0
@@ -188,6 +197,9 @@ class PlayerView : View("Player") {
                         is MidiTrack -> when ((playbackEvent.track as MidiTrack).channel) {
                             10 -> drumMuteButton.selectedProperty().value = playbackEvent.muted
                         }
+                    }
+                    is MeasurePlaybackEvent -> {
+                        currentMeasure.value = playbackEvent.measure
                     }
                     is TempoEvent -> {
                         songTempo.value = playbackEvent.tempo

@@ -60,6 +60,7 @@ data class MidiTrack(val channel: Int) : EngineTrack
 sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()
 data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
+data class MeasurePlaybackEvent(val measure: Int) : PlaybackEvent()
 data class TempoEvent(val tempo: Tempo?,
                       val multiplier: Double,
                       val adjustedTempo: Tempo?) : PlaybackEvent()
@@ -377,7 +378,7 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
             }
 
     override fun atMeasureStart(measure: Int) {
-        /* no-op */
+        playbackListeners.forEach { listener -> listener(MeasurePlaybackEvent(measure)) }
     }
 
     override fun updateTempoMultiplier(f: (Double) -> Double) {
