@@ -1,6 +1,7 @@
 package midituutti
 
 import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.control.TabPane
 import javafx.scene.control.ToggleButton
 import javafx.stage.FileChooser
 import midituutti.engine.ClickTrack
@@ -16,6 +17,7 @@ import midituutti.engine.createEngine
 import midituutti.midi.Tempo
 import tornadofx.*
 import java.io.File
+import kotlin.math.roundToInt
 
 val drumTrack = MidiTrack(10)
 
@@ -61,7 +63,7 @@ class EngineController : Controller() {
 
     fun jump(f: (Int) -> Int) = engine().jumpToBar(f)
 
-    fun updateTempoMultiplier(f: (Double) -> Double) = engine().updateTempoMultiplier(f)
+    fun setTempoModifier(f: (Tempo) -> Tempo) = engine().setTempoModifier(f)
 }
 
 class PlayerView : View("Player") {
@@ -71,9 +73,12 @@ class PlayerView : View("Player") {
     private var drumMuteButton: ToggleButton by singleAssign()
     private val songTempo = SimpleObjectProperty<Tempo?>()
     private val tempoMultiplier = SimpleObjectProperty(1.0)
+    private val constantTempo = SimpleObjectProperty(Tempo(120.0))
     private val adjustedTempo = SimpleObjectProperty<Tempo?>()
     private val currentMeasure = SimpleObjectProperty<Int?>()
     private val measureCount = SimpleObjectProperty<Int?>()
+    private val tempoMultiplierFun = fun(tempo: Tempo): Tempo = tempo * tempoMultiplier.value
+    private val constantTempoFun = fun(_: Tempo): Tempo = constantTempo.value
 
     override val root = vbox {
         // Disable until a file is opened.
@@ -132,43 +137,85 @@ class PlayerView : View("Player") {
                 engineController.jump { m -> m + 1 }
             }
         }
-        button("+") {
-            shortcut("W")
-            isFocusTraversable = false
-            action {
-                engineController.updateTempoMultiplier { m -> m + 0.01 }
+        tabpane {
+            tabClosingPolicy = TabPane.TabClosingPolicy.UNAVAILABLE
+            tab("Multiplier") {
+                whenSelected { engineController.setTempoModifier(tempoMultiplierFun) }
+                vbox {
+                    hbox {
+                        label("Tempo multiplier: ")
+                        label(tempoMultiplier.stringBinding { m -> String.format("%.2f", m) }) {
+                            minWidth = 50.0
+                            maxWidth = 50.0
+                        }
+                    }
+                    hbox {
+                        label("Adjusted song tempo: ")
+                        label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
+                            minWidth = 50.0
+                            maxWidth = 50.0
+                        }
+                    }
+                    hbox {
+                        button("+") {
+                            shortcut("W")
+                            isFocusTraversable = false
+                            action {
+                                tempoMultiplier.value += 0.01
+                            }
+                        }
+                        button("o") {
+                            isFocusTraversable = false
+                            action {
+                                tempoMultiplier.value = 1.0
+                            }
+                        }
+                        button("-") {
+                            shortcut("S")
+                            isFocusTraversable = false
+                            action {
+                                tempoMultiplier.value -= -0.01
+                            }
+                        }
+                    }
+                }
             }
-        }
-        button("o") {
-            isFocusTraversable = false
-            action {
-                engineController.updateTempoMultiplier { 1.0 }
-            }
-        }
-        button("-") {
-            shortcut("S")
-            isFocusTraversable = false
-            action {
-                engineController.updateTempoMultiplier { m -> m - 0.01 }
+            tab("Constant") {
+                whenSelected { engineController.setTempoModifier(constantTempoFun) }
+                vbox {
+                    hbox {
+                        label("Constant tempo: ")
+                        label(constantTempo.stringBinding { m -> if (m != null) String.format("%.2f", m.bpm) else "" }) {
+                            minWidth = 50.0
+                            maxWidth = 50.0
+                        }
+                    }
+                    hbox {
+                        button("+") {
+                            isFocusTraversable = false
+                            action {
+                                constantTempo.value += 1.0
+                            }
+                        }
+                        button("o") {
+                            isFocusTraversable = false
+                            action {
+                                constantTempo.value = Tempo(songTempo.value?.bpm?.roundToInt()?.toDouble() ?: 120.0)
+                            }
+                        }
+                        button("-") {
+                            isFocusTraversable = false
+                            action {
+                                constantTempo.value -= 1.0
+                            }
+                        }
+                    }
+                }
             }
         }
         hbox {
             label("Song tempo: ")
             label(songTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        hbox {
-            label("Tempo multiplier: ")
-            label(tempoMultiplier.stringBinding { m -> String.format("%.2f", m) }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        hbox {
-            label("Actual tempo: ")
-            label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
                 minWidth = 50.0
                 maxWidth = 50.0
             }
@@ -203,7 +250,6 @@ class PlayerView : View("Player") {
                     }
                     is TempoEvent -> {
                         songTempo.value = playbackEvent.tempo
-                        tempoMultiplier.value = playbackEvent.multiplier
                         adjustedTempo.value = playbackEvent.adjustedTempo
                     }
                 }
@@ -212,6 +258,7 @@ class PlayerView : View("Player") {
 
         subscribe<LoadEvent> { event ->
             run {
+                engineController.setTempoModifier(tempoMultiplierFun)
                 measureCount.value = event.measures
                 isDisable = false
             }

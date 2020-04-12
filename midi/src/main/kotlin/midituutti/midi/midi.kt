@@ -17,6 +17,8 @@ import javax.sound.midi.SysexMessage as JavaSysexMessage
 
 class Tempo(val bpm: Double) {
     operator fun times(other: Double): Tempo = Tempo(bpm * other)
+    operator fun plus(other: Double): Tempo? = Tempo(bpm + other)
+    operator fun minus(other: Double): Tempo? = Tempo(bpm - other)
 }
 
 data class Tick(val tick: Long) : Comparable<Tick> {

@@ -62,7 +62,6 @@ data class PlayEvent(val playing: Boolean) : PlaybackEvent()
 data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
 data class MeasurePlaybackEvent(val measure: Int) : PlaybackEvent()
 data class TempoEvent(val tempo: Tempo?,
-                      val multiplier: Double,
                       val adjustedTempo: Tempo?) : PlaybackEvent()
 
 typealias PlaybackListener = (PlaybackEvent) -> Unit
@@ -86,7 +85,7 @@ interface Engine {
 
     fun addPlaybackListener(listener: PlaybackListener)
 
-    fun updateTempoMultiplier(f: (Double) -> Double)
+    fun setTempoModifier(f: (Tempo) -> Tempo)
 
     fun jumpToBar(f: (Int) -> Int)
 }
@@ -209,7 +208,7 @@ private class Reader(val playControl: PlayControl,
 }
 
 private class Player(val playControl: PlayControl,
-                     var tempoMultiplier: Double,
+                     var tempoModifier: (Tempo) -> Tempo,
                      val queue: BlockingQueue<List<EngineEvent>>,
                      val midiFile: MidiFile,
                      val synthesizerPort: MidiPort) : Thread() {
@@ -239,7 +238,7 @@ private class Player(val playControl: PlayControl,
 
     fun currentTempo(): Tempo? = tempo
 
-    fun currentAdjustedTempo(): Tempo? = tempo?.let { t -> t * tempoMultiplier }
+    fun currentAdjustedTempo(): Tempo? = tempo?.let { t -> tempoModifier(t) }
 
     override fun run() {
         while (true) {
@@ -255,7 +254,7 @@ private class Player(val playControl: PlayControl,
                     val chunkTicks = chunk.first().ticks()
 
                     val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
-                    val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), t * tempoMultiplier) }
+                    val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), tempoModifier(t)) }
                     val eventCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
                     val currentNs = System.nanoTime()
 
@@ -373,7 +372,7 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
     }
 
     override fun tempoChanged(): Unit =
-            TempoEvent(player.currentTempo(), player.tempoMultiplier, player.currentAdjustedTempo()).let { event ->
+            TempoEvent(player.currentTempo(), player.currentAdjustedTempo()).let { event ->
                 playbackListeners.forEach { listener -> listener(event) }
             }
 
@@ -381,8 +380,8 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
         playbackListeners.forEach { listener -> listener(MeasurePlaybackEvent(measure)) }
     }
 
-    override fun updateTempoMultiplier(f: (Double) -> Double) {
-        player.tempoMultiplier = minOf(maxOf(f(player.tempoMultiplier), 0.1), 3.0)
+    override fun setTempoModifier(f: (Tempo) -> Tempo) {
+        player.tempoModifier = f
         tempoChanged()
     }
 
@@ -397,6 +396,8 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
 
 data class EngineInitialState(val engine: Engine, val measures: Int)
 
+fun noOpTempoModifier(tempo: Tempo) = tempo
+
 fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineInitialState {
     val synthesizerPort = createDefaultSynthesizerPort()
     val midiFile = openFile(filePath)
@@ -406,7 +407,7 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
 
     val playControl = PlayControl()
 
-    val player = Player(playControl, 1.0, queue, midiFile, synthesizerPort)
+    val player = Player(playControl, ::noOpTempoModifier, queue, midiFile, synthesizerPort)
     player.addPlayerListener(playControl)
     player.start()
 
