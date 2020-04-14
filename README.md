@@ -5,7 +5,8 @@ A midi player for playing backing tracks while practicing.
 ## Current features:
 * A bit unreliable playback
 * Minimum effort UI (for the programmer, not the user)
-* Tempo multiplier
+* Tempo multiplier (adjust song tempo by a multiplier)
+* Constant tempo (override song's tempo)
 * Jump to next/prev measure
 * Mute drums (channel 10)
 * Click
@@ -22,7 +23,6 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 * Remember last n files
 * Select range of measures to repeat
 * Select click sounds
-* Set a constant tempo (instead of multiplying the song's tempo)
 * Mixer, maybe just a volume slider for each channel
 * Keep track of instrument changes and reset instruments when jumping between measures
 * UI aesthetics
