@@ -18,12 +18,14 @@ import midituutti.midi.Tempo
 import tornadofx.*
 import java.io.File
 import kotlin.math.roundToInt
+import kotlin.time.ExperimentalTime
 
 val drumTrack = MidiTrack(10)
 
 class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
 class LoadEvent(val measures: Int) : FXEvent()
 
+@ExperimentalTime
 class EngineController : Controller() {
     private var engine: Engine? = null
 
@@ -66,6 +68,7 @@ class EngineController : Controller() {
     fun setTempoModifier(f: (Tempo) -> Tempo) = engine().setTempoModifier(f)
 }
 
+@ExperimentalTime
 class PlayerView : View("Player") {
     val engineController: EngineController by param()
     private var playButton: ToggleButton by singleAssign()
@@ -266,6 +269,7 @@ class PlayerView : View("Player") {
     }
 }
 
+@ExperimentalTime
 class RootView : View("Root") {
     private val engineController = EngineController()
 
@@ -297,8 +301,10 @@ class RootView : View("Root") {
     }
 }
 
+@ExperimentalTime
 class MidiTuuttiApp : App(RootView::class)
 
+@ExperimentalTime
 fun main(args: Array<String>) {
     // TODO kotlin: how to get command line args to the view?
     launch<MidiTuuttiApp>(args)

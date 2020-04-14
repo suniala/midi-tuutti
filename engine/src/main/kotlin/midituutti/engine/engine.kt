@@ -8,13 +8,21 @@ import midituutti.midi.MidiPort
 import midituutti.midi.Note
 import midituutti.midi.NoteMessage
 import midituutti.midi.OnOff
-import midituutti.midi.OutputTimestamp
 import midituutti.midi.Tempo
 import midituutti.midi.Tick
 import midituutti.midi.createDefaultSynthesizerPort
 import midituutti.midi.openFile
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.TimeSource
+
+@ExperimentalTime
+fun Duration.millisPart(): Long = this.toLongMilliseconds()
+
+@ExperimentalTime
+fun Duration.nanosPart(): Int = (this.toLongNanoseconds() - (this.millisPart() * 1000 * 1000)).toInt()
 
 private fun muteOrPass(mutedTracks: Set<EngineTrack>, message: MidiMessage): MidiMessage =
         if (message.isNote()) {
@@ -207,6 +215,7 @@ private class Reader(val playControl: PlayControl,
     }
 }
 
+@ExperimentalTime
 private class Player(val playControl: PlayControl,
                      var tempoModifier: (Tempo) -> Tempo,
                      val queue: BlockingQueue<List<EngineEvent>>,
@@ -243,9 +252,9 @@ private class Player(val playControl: PlayControl,
     override fun run() {
         while (true) {
             playControl.waitForPlay()
-            val playStartNs = System.nanoTime()
+            val playStartMark = TimeSource.Monotonic.markNow()
             var prevTicks: Tick? = null
-            var prevEventCalculatedNs: Long = playStartNs
+            var prevChunkCalculatedTs = Duration.ZERO
             println("player: playing")
 
             try {
@@ -254,28 +263,25 @@ private class Player(val playControl: PlayControl,
                     val chunkTicks = chunk.first().ticks()
 
                     val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
-                    val timestampDelta = tempo?.let { t -> OutputTimestamp.ofTickAndTempo(ticksDelta, midiFile.ticksPerBeat(), tempoModifier(t)) }
-                    val eventCalculatedNs = prevEventCalculatedNs + (timestampDelta?.toNanos() ?: 0)
-                    val currentNs = System.nanoTime()
+                    val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
+                    val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
 
-                    (eventCalculatedNs - currentNs).let { timeToEventCalculatedNs ->
-                        if (timeToEventCalculatedNs > 0) {
-                            val millis = timeToEventCalculatedNs / 1000 / 1000
-                            val nanos = (timeToEventCalculatedNs - (millis * 1000 * 1000)).toInt()
-                            sleep(millis, nanos)
+                    (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
+                        if (timeToEventCalculatedNs.isPositive()) {
+                            sleep(timeToEventCalculatedNs.millisPart(), timeToEventCalculatedNs.nanosPart())
                         }
                     }
 
                     for (event in chunk) {
                         val eventMidiMessage: MidiMessage? = handleEvent(event)
 
-                        EngineTraceLogger.trace(playStartNs, eventCalculatedNs, event.ticks(),
-                                if (event == chunk.first()) timestampDelta else OutputTimestamp.NIL,
+                        EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, event.ticks(),
+                                if (event == chunk.first()) timestampDelta else Duration.ZERO,
                                 eventMidiMessage, if (event is MeasureEvent) event.measure else null)
                     }
 
                     prevTicks = chunkTicks
-                    prevEventCalculatedNs = eventCalculatedNs
+                    prevChunkCalculatedTs = chunkCalculatedTs
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
@@ -323,6 +329,7 @@ private class Player(val playControl: PlayControl,
     }
 }
 
+@ExperimentalTime
 private class PlayerEngine(val song: SongStructure, val playControl: PlayControl, val player: Player, val reader: Reader) : Engine, PlayerListener {
     private val playbackListeners = mutableSetOf<PlaybackListener>()
 
@@ -398,6 +405,7 @@ data class EngineInitialState(val engine: Engine, val measures: Int)
 
 fun noOpTempoModifier(tempo: Tempo) = tempo
 
+@ExperimentalTime
 fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineInitialState {
     val synthesizerPort = createDefaultSynthesizerPort()
     val midiFile = openFile(filePath)

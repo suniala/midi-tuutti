@@ -6,15 +6,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import midituutti.midi.MidiMessage
-import midituutti.midi.OutputTimestamp
 import midituutti.midi.Tick
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.TimeMark
 
-private data class LogMessage(val ticks: Tick, val timestampNs: Long, val actualDeltaNs: Long?, val expectedDeltaNs: Long?,
-                              val expectedTimestampNs: Long, val midiMessage: MidiMessage?, val measure: Int)
+@ExperimentalTime
+private data class LogMessage(val ticks: Tick, val timestamp: Duration, val actualDeltaTs: Duration?, val expectedDeltaTs: Duration?,
+                              val expectedTs: Duration, val midiMessage: MidiMessage?, val measure: Int)
 
+@ExperimentalTime
 private object RowFormatter {
     fun heading(): String = arrayOf(
             "ticks",
@@ -31,21 +35,22 @@ private object RowFormatter {
     fun row(logMessage: LogMessage): String = logMessage.run {
         arrayOf(
                 "$ticks",
-                formatTimeToMs(timestampNs),
-                formatTimeToMs(expectedTimestampNs),
-                formatTimeToMs(timestampNs - expectedTimestampNs),
-                formatTimeToMs(actualDeltaNs),
-                formatTimeToMs(expectedDeltaNs),
-                formatTimeToMs(actualDeltaNs?.minus(expectedDeltaNs ?: 0)),
+                formatTimeToMs(timestamp),
+                formatTimeToMs(expectedTs),
+                formatTimeToMs(timestamp - expectedTs),
+                formatTimeToMs(actualDeltaTs),
+                formatTimeToMs(expectedDeltaTs),
+                formatTimeToMs(actualDeltaTs?.minus(expectedDeltaTs ?: Duration.ZERO)),
                 measure,
                 "\"${midiMessage ?: '-'}\""
         ).joinToString(";")
     }
 
-    private fun formatTimeToMs(nanos: Long?): String =
-            String.format("%.3f", (nanos ?: 0).toDouble() / 1000 / 1000)
+    private fun formatTimeToMs(time: Duration?): String =
+            String.format("%.3f", (time ?: Duration.ZERO).inMilliseconds)
 }
 
+@ExperimentalTime
 object EngineTraceLogger {
     private val traceEnabled = System.getProperty("midituutti.engine.trace") == "true"
     private val queue = LinkedBlockingQueue<LogMessage>(1000 * 1000)
@@ -53,15 +58,15 @@ object EngineTraceLogger {
     private var currentMeasure = 1
     private var flushJob: Job? = null
 
-    fun trace(playStartNs: Long, expectedTimestampNs: Long, ticks: Tick, expectedDeltaTs: OutputTimestamp?,
+    fun trace(playStartMark: TimeMark, expectedTimestampTs: Duration, ticks: Tick, expectedDeltaTs: Duration?,
               midiMessage: MidiMessage?, startOfMeasureNo: Int?) {
         if (flushJob?.isActive == true && traceEnabled) {
             currentMeasure = startOfMeasureNo ?: currentMeasure
-            val timestampNs = System.nanoTime() - playStartNs
-            val actualDeltaNs = previous?.let { p -> timestampNs - p.timestampNs }
-            val expectedDeltaNs = if (previous != null && expectedDeltaTs != null) expectedDeltaTs.toNanos() else null
-            val logMessage = LogMessage(ticks, timestampNs, actualDeltaNs, expectedDeltaNs,
-                    expectedTimestampNs - playStartNs, midiMessage, currentMeasure)
+            val eventTs = playStartMark.elapsedNow()
+            val actualDeltaTs = previous?.let { p -> eventTs - p.timestamp }
+            val expectedDeltaTs = if (previous != null && expectedDeltaTs != null) expectedDeltaTs else null
+            val logMessage = LogMessage(ticks, eventTs, actualDeltaTs, expectedDeltaTs,
+                    expectedTimestampTs, midiMessage, currentMeasure)
             queue.put(logMessage)
             previous = logMessage
         }

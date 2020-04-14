@@ -4,7 +4,9 @@ import java.io.File
 import java.io.InputStream
 import javax.sound.midi.MidiSystem
 import javax.sound.midi.Receiver
-import kotlin.math.roundToLong
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.microseconds
 import javax.sound.midi.MetaMessage as JavaMetaMessage
 import javax.sound.midi.MidiMessage as JavaMidiMessage
 import javax.sound.midi.Sequence as MidiSequence
@@ -35,31 +37,12 @@ data class Tick(val tick: Long) : Comparable<Tick> {
     override fun toString(): String {
         return "$tick"
     }
-}
 
-class OutputTimestamp private constructor(private val asMicros: Long) {
-    fun nonNil(): Boolean = asMicros > 0
-
-    fun millisPart(): Long = (asMicros / 1000.0).toLong()
-
-    fun nanosPart(): Int = ((asMicros - millisPart() * 1000) * 1000).toInt()
-
-    operator fun minus(other: OutputTimestamp) = ofMicros(asMicros - other.asMicros)
-
-    fun toNanos(): Long = asMicros * 1000
-
-    companion object {
-        val NIL = OutputTimestamp(0)
-
-        fun ofTickAndTempo(tick: Tick, resolution: Int, tempo: Tempo): OutputTimestamp {
-            val ticksPerSecond = resolution * (tempo.bpm / 60.0)
-            val tickSize = 1.0 / ticksPerSecond
-            return ofMicros((tick.tick * tickSize * 1000 * 1000).roundToLong())
-        }
-
-        private fun ofMicros(micros: Long): OutputTimestamp {
-            return OutputTimestamp(micros)
-        }
+    @ExperimentalTime
+    fun toDuration(resolution: Int, tempo: Tempo): Duration {
+        val ticksPerSecond = resolution * (tempo.bpm / 60.0)
+        val tickSize = 1.0 / ticksPerSecond
+        return (tick * tickSize * 1000 * 1000).microseconds
     }
 }
 

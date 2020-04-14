@@ -1,7 +1,9 @@
 package midituutti
 
 import midituutti.engine.createEngine
+import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 fun main(args: Array<String>) {
     val filePath = if (args.isNotEmpty()) args[0] else throw IllegalArgumentException("must give path to midi file")
     val startMeasure = if (args.size >= 2) args[1].toInt() else null
