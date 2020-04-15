@@ -164,10 +164,17 @@ private interface PlayerListener {
     fun atMeasureStart(measure: Int)
 }
 
+private interface PlayItem
+private data class SimultaneousEventsChunk(val events: List<EngineEvent>) : PlayItem {
+    val ticks: Tick = events.first().ticks()
+}
+
+private object PlayReset : PlayItem
+
 private class Reader(val playControl: PlayControl,
                      @Volatile var from: Int,
                      @Volatile var to: Int,
-                     val queue: BlockingQueue<List<EngineEvent>>,
+                     val queue: BlockingQueue<PlayItem>,
                      val song: SongStructure) : Thread() {
     init {
         isDaemon = true
@@ -185,28 +192,28 @@ private class Reader(val playControl: PlayControl,
                     for (readerCursor in startFrom..to) {
                         val measure = song.measures[readerCursor - 1]
 
-                        var chunk = arrayListOf<EngineEvent>()
-                        chunk.add(MeasureEvent(measure.start, readerCursor))
+                        var chunkEvents = arrayListOf<EngineEvent>()
+                        chunkEvents.add(MeasureEvent(measure.start, readerCursor))
 
                         for (event in measure.events) {
-                            if (chunk.isEmpty()) {
-                                chunk.add(event)
+                            if (chunkEvents.isEmpty()) {
+                                chunkEvents.add(event)
                             } else {
-                                if (chunk.first().ticks() == event.ticks()) {
-                                    chunk.add(event)
+                                if (chunkEvents.first().ticks() == event.ticks()) {
+                                    chunkEvents.add(event)
                                 } else {
-                                    queue.put(chunk)
-                                    chunk = arrayListOf(event)
+                                    queue.put(SimultaneousEventsChunk(chunkEvents))
+                                    chunkEvents = arrayListOf(event)
                                 }
                             }
                         }
-                        if (chunk.isNotEmpty()) {
-                            queue.put(chunk)
+                        if (chunkEvents.isNotEmpty()) {
+                            queue.put(SimultaneousEventsChunk(chunkEvents))
                         }
                     }
 
-                    // Mark a "jump" between measures via an empty list.
-                    queue.put(emptyList())
+                    // Mark a "jump" between measures.
+                    queue.put(PlayReset)
 
                     // Start from beginning again
                     startFrom = from
@@ -222,7 +229,7 @@ private class Reader(val playControl: PlayControl,
 @ExperimentalTime
 private class Player(val playControl: PlayControl,
                      var tempoModifier: (Tempo) -> Tempo,
-                     val queue: BlockingQueue<List<EngineEvent>>,
+                     val queue: BlockingQueue<PlayItem>,
                      val midiFile: MidiFile,
                      val synthesizerPort: MidiPort) : Thread() {
     val playerListeners = mutableListOf<PlayerListener>()
@@ -263,37 +270,40 @@ private class Player(val playControl: PlayControl,
 
             try {
                 while (playControl.isPlaying()) {
-                    val chunk = queue.take()
-                    if (chunk.isNotEmpty()) {
-                        playStartMark = playStartMark ?: TimeSource.Monotonic.markNow()
+                    @Suppress("MoveVariableDeclarationIntoWhen")
+                    val playItem = queue.take()
 
-                        val chunkTicks = chunk.first().ticks()
+                    when (playItem) {
+                        is SimultaneousEventsChunk -> {
+                            playStartMark = playStartMark ?: TimeSource.Monotonic.markNow()
 
-                        val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
-                        val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
-                        val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
+                            val ticksDelta = playItem.ticks - (prevTicks ?: playItem.ticks)
+                            val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
+                            val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
 
-                        (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
-                            if (timeToEventCalculatedNs.isPositive()) {
-                                sleep(timeToEventCalculatedNs.millisPart(), timeToEventCalculatedNs.nanosPart())
+                            (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
+                                if (timeToEventCalculatedNs.isPositive()) {
+                                    sleep(timeToEventCalculatedNs.millisPart(), timeToEventCalculatedNs.nanosPart())
+                                }
                             }
+
+                            for (event in playItem.events) {
+                                val eventMidiMessage: MidiMessage? = handleEvent(event)
+
+                                EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, playItem.ticks,
+                                        if (event == playItem.events.first()) timestampDelta else Duration.ZERO,
+                                        eventMidiMessage, if (event is MeasureEvent) event.measure else null)
+                            }
+
+                            prevTicks = playItem.ticks
+                            prevChunkCalculatedTs = chunkCalculatedTs
                         }
-
-                        for (event in chunk) {
-                            val eventMidiMessage: MidiMessage? = handleEvent(event)
-
-                            EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, event.ticks(),
-                                    if (event == chunk.first()) timestampDelta else Duration.ZERO,
-                                    eventMidiMessage, if (event is MeasureEvent) event.measure else null)
+                        is PlayReset -> {
+                            // We have jumped over some measures, need to reset timing state.
+                            playStartMark = null
+                            prevTicks = null
+                            prevChunkCalculatedTs = Duration.ZERO
                         }
-
-                        prevTicks = chunkTicks
-                        prevChunkCalculatedTs = chunkCalculatedTs
-                    } else {
-                        // We have jumped over some measures, need to reset timing state.
-                        playStartMark = null
-                        prevTicks = null
-                        prevChunkCalculatedTs = Duration.ZERO
                     }
                 }
             } catch (e: InterruptedException) {
@@ -424,7 +434,7 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val midiFile = openFile(filePath)
     val song = SongStructure.withClick(midiFile)
 
-    val queue = LinkedBlockingQueue<List<EngineEvent>>(1000)
+    val queue = LinkedBlockingQueue<PlayItem>(1000)
 
     val playControl = PlayControl()
 
