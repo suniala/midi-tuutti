@@ -16,6 +16,7 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 @ExperimentalTime
@@ -204,6 +205,9 @@ private class Reader(val playControl: PlayControl,
                         }
                     }
 
+                    // Mark a "jump" between measures via an empty list.
+                    queue.put(emptyList())
+
                     // Start from beginning again
                     startFrom = from
                 }
@@ -252,7 +256,7 @@ private class Player(val playControl: PlayControl,
     override fun run() {
         while (true) {
             playControl.waitForPlay()
-            val playStartMark = TimeSource.Monotonic.markNow()
+            var playStartMark: TimeMark? = null
             var prevTicks: Tick? = null
             var prevChunkCalculatedTs = Duration.ZERO
             println("player: playing")
@@ -260,28 +264,37 @@ private class Player(val playControl: PlayControl,
             try {
                 while (playControl.isPlaying()) {
                     val chunk = queue.take()
-                    val chunkTicks = chunk.first().ticks()
+                    if (chunk.isNotEmpty()) {
+                        playStartMark = playStartMark ?: TimeSource.Monotonic.markNow()
 
-                    val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
-                    val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
-                    val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
+                        val chunkTicks = chunk.first().ticks()
 
-                    (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
-                        if (timeToEventCalculatedNs.isPositive()) {
-                            sleep(timeToEventCalculatedNs.millisPart(), timeToEventCalculatedNs.nanosPart())
+                        val ticksDelta = chunkTicks - (prevTicks ?: chunkTicks)
+                        val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
+                        val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
+
+                        (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
+                            if (timeToEventCalculatedNs.isPositive()) {
+                                sleep(timeToEventCalculatedNs.millisPart(), timeToEventCalculatedNs.nanosPart())
+                            }
                         }
+
+                        for (event in chunk) {
+                            val eventMidiMessage: MidiMessage? = handleEvent(event)
+
+                            EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, event.ticks(),
+                                    if (event == chunk.first()) timestampDelta else Duration.ZERO,
+                                    eventMidiMessage, if (event is MeasureEvent) event.measure else null)
+                        }
+
+                        prevTicks = chunkTicks
+                        prevChunkCalculatedTs = chunkCalculatedTs
+                    } else {
+                        // We have jumped over some measures, need to reset timing state.
+                        playStartMark = null
+                        prevTicks = null
+                        prevChunkCalculatedTs = Duration.ZERO
                     }
-
-                    for (event in chunk) {
-                        val eventMidiMessage: MidiMessage? = handleEvent(event)
-
-                        EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, event.ticks(),
-                                if (event == chunk.first()) timestampDelta else Duration.ZERO,
-                                eventMidiMessage, if (event is MeasureEvent) event.measure else null)
-                    }
-
-                    prevTicks = chunkTicks
-                    prevChunkCalculatedTs = chunkCalculatedTs
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
