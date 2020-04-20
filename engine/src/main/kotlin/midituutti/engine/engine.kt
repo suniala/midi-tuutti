@@ -10,6 +10,7 @@ import midituutti.midi.NoteMessage
 import midituutti.midi.OnOff
 import midituutti.midi.Tempo
 import midituutti.midi.Tick
+import midituutti.midi.TimeSignature
 import midituutti.midi.createDefaultSynthesizerPort
 import midituutti.midi.openFile
 import java.util.concurrent.BlockingQueue
@@ -58,7 +59,7 @@ data class ClickEvent(private val ticks: Tick, val click: ClickType) : EngineEve
     override fun ticks(): Tick = ticks
 }
 
-data class MeasureEvent(private val ticks: Tick, val measure: Int) : EngineEvent() {
+data class MeasureEvent(private val ticks: Tick, val measure: Int, val timeSignature: TimeSignature) : EngineEvent() {
     override fun ticks(): Tick = ticks
 }
 
@@ -69,7 +70,7 @@ data class MidiTrack(val channel: Int) : EngineTrack
 sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()
 data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
-data class MeasurePlaybackEvent(val measure: Int) : PlaybackEvent()
+data class MeasurePlaybackEvent(val measure: Int, val timeSignature: TimeSignature) : PlaybackEvent()
 data class TempoEvent(val tempo: Tempo?,
                       val adjustedTempo: Tempo?) : PlaybackEvent()
 
@@ -144,7 +145,7 @@ private class PlayControl : PlayerListener {
     override fun tempoChanged() { /* no-op */
     }
 
-    override fun atMeasureStart(measure: Int) {
+    override fun atMeasureStart(measure: Int, timeSignature: TimeSignature) {
         currentMeasure = measure
     }
 }
@@ -161,7 +162,7 @@ fun createSingeNoteHitEngine(): SingleNoteHitEngine {
 
 private interface PlayerListener {
     fun tempoChanged()
-    fun atMeasureStart(measure: Int)
+    fun atMeasureStart(measure: Int, timeSignature: TimeSignature)
 }
 
 private interface PlayItem
@@ -193,7 +194,7 @@ private class Reader(val playControl: PlayControl,
                         val measure = song.measures[readerCursor - 1]
 
                         var chunkEvents = arrayListOf<EngineEvent>()
-                        chunkEvents.add(MeasureEvent(measure.start, readerCursor))
+                        chunkEvents.add(MeasureEvent(measure.start, readerCursor, measure.timeSignature))
 
                         for (event in measure.events) {
                             if (chunkEvents.isEmpty()) {
@@ -321,7 +322,7 @@ private class Player(val playControl: PlayControl,
                 }
             is MeasureEvent -> {
                 println("player: at ${event.measure}")
-                playerListeners.forEach { pl -> pl.atMeasureStart(event.measure) }
+                playerListeners.forEach { pl -> pl.atMeasureStart(event.measure, event.timeSignature) }
             }
             else -> {
             }
@@ -406,8 +407,8 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
                 playbackListeners.forEach { listener -> listener(event) }
             }
 
-    override fun atMeasureStart(measure: Int) {
-        playbackListeners.forEach { listener -> listener(MeasurePlaybackEvent(measure)) }
+    override fun atMeasureStart(measure: Int, timeSignature: TimeSignature) {
+        playbackListeners.forEach { listener -> listener(MeasurePlaybackEvent(measure, timeSignature)) }
     }
 
     override fun setTempoModifier(f: (Tempo) -> Tempo) {

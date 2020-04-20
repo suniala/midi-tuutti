@@ -15,6 +15,7 @@ import midituutti.engine.PlaybackEvent
 import midituutti.engine.TempoEvent
 import midituutti.engine.createEngine
 import midituutti.midi.Tempo
+import midituutti.midi.TimeSignature
 import tornadofx.*
 import java.io.File
 import kotlin.time.ExperimentalTime
@@ -86,6 +87,7 @@ class PlayerView : View("Player") {
     private val constantTempo = SimpleObjectProperty(Tempo(120.0))
     private val adjustedTempo = SimpleObjectProperty<Tempo?>()
     private val currentMeasure = SimpleObjectProperty<Int?>()
+    private val currentTimeSignature = SimpleObjectProperty<TimeSignature?>()
     private val measureCount = SimpleObjectProperty<Int?>()
     private val tempoModeGroup = ToggleGroup()
     private val tempoMode = tempoModeGroup.selectedValueProperty<TempoMode>()
@@ -230,6 +232,15 @@ class PlayerView : View("Player") {
                 maxWidth = 50.0
             }
         }
+        hbox {
+            label("Current time signature: ")
+            label(currentTimeSignature.stringBinding { c ->
+                c?.let { ts -> "${ts.numerator}/${ts.denominator}" } ?: ""
+            }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
 
         shortcut("T") {
             tempoMode.value = when (tempoMode.value as TempoMode) {
@@ -250,6 +261,7 @@ class PlayerView : View("Player") {
                     }
                     is MeasurePlaybackEvent -> {
                         currentMeasure.value = playbackEvent.measure
+                        currentTimeSignature.value = playbackEvent.timeSignature
                     }
                     is TempoEvent -> {
                         songTempo.value = playbackEvent.tempo
