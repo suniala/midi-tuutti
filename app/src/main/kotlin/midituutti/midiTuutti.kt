@@ -1,8 +1,8 @@
 package midituutti
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.scene.control.TabPane
 import javafx.scene.control.ToggleButton
+import javafx.scene.control.ToggleGroup
 import javafx.stage.FileChooser
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
@@ -17,13 +17,20 @@ import midituutti.engine.createEngine
 import midituutti.midi.Tempo
 import tornadofx.*
 import java.io.File
-import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
 val drumTrack = MidiTrack(10)
 
 class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
 class LoadEvent(val measures: Int) : FXEvent()
+
+enum class TempoMode {
+    CONSTANT, MULTIPLIER
+}
+
+enum class TempoAdjustment {
+    DECREASE, RESET, INCREASE
+}
 
 @ExperimentalTime
 class EngineController : Controller() {
@@ -80,8 +87,30 @@ class PlayerView : View("Player") {
     private val adjustedTempo = SimpleObjectProperty<Tempo?>()
     private val currentMeasure = SimpleObjectProperty<Int?>()
     private val measureCount = SimpleObjectProperty<Int?>()
-    private val tempoMultiplierFun = fun(tempo: Tempo): Tempo = tempo * tempoMultiplier.value
-    private val constantTempoFun = fun(_: Tempo): Tempo = constantTempo.value
+    private val tempoModeGroup = ToggleGroup()
+    private val tempoMode = tempoModeGroup.selectedValueProperty<TempoMode>()
+
+    private fun updateTempoModifier(tempoMode: TempoMode, multiplier: Double, constant: Tempo) {
+        when (tempoMode) {
+            TempoMode.MULTIPLIER -> engineController.setTempoModifier(fun(tempo: Tempo) = tempo * multiplier)
+            TempoMode.CONSTANT -> engineController.setTempoModifier(fun(_) = constant)
+        }
+    }
+
+    private fun adjustCurrentTempoMode(adjustment: TempoAdjustment) {
+        when (tempoMode.value as TempoMode) {
+            TempoMode.MULTIPLIER -> tempoMultiplier.value = when (adjustment) {
+                TempoAdjustment.DECREASE -> tempoMultiplier.value - 0.01
+                TempoAdjustment.RESET -> 1.0
+                TempoAdjustment.INCREASE -> tempoMultiplier.value + 0.01
+            }
+            TempoMode.CONSTANT -> constantTempo.value = when (adjustment) {
+                TempoAdjustment.DECREASE -> constantTempo.value - 1.0
+                TempoAdjustment.RESET -> Tempo(120.0)
+                TempoAdjustment.INCREASE -> constantTempo.value + 1.0
+            }
+        }
+    }
 
     override val root = vbox {
         // Disable until a file is opened.
@@ -140,80 +169,12 @@ class PlayerView : View("Player") {
                 engineController.jump { m -> m + 1 }
             }
         }
-        tabpane {
-            tabClosingPolicy = TabPane.TabClosingPolicy.UNAVAILABLE
-            tab("Multiplier") {
-                whenSelected { engineController.setTempoModifier(tempoMultiplierFun) }
-                vbox {
-                    hbox {
-                        label("Tempo multiplier: ")
-                        label(tempoMultiplier.stringBinding { m -> String.format("%.2f", m) }) {
-                            minWidth = 50.0
-                            maxWidth = 50.0
-                        }
-                    }
-                    hbox {
-                        label("Adjusted song tempo: ")
-                        label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
-                            minWidth = 50.0
-                            maxWidth = 50.0
-                        }
-                    }
-                    hbox {
-                        button("+") {
-                            shortcut("W")
-                            isFocusTraversable = false
-                            action {
-                                tempoMultiplier.value += 0.01
-                            }
-                        }
-                        button("o") {
-                            isFocusTraversable = false
-                            action {
-                                tempoMultiplier.value = 1.0
-                            }
-                        }
-                        button("-") {
-                            shortcut("S")
-                            isFocusTraversable = false
-                            action {
-                                tempoMultiplier.value -= -0.01
-                            }
-                        }
-                    }
-                }
-            }
-            tab("Constant") {
-                whenSelected { engineController.setTempoModifier(constantTempoFun) }
-                vbox {
-                    hbox {
-                        label("Constant tempo: ")
-                        label(constantTempo.stringBinding { m -> if (m != null) String.format("%.2f", m.bpm) else "" }) {
-                            minWidth = 50.0
-                            maxWidth = 50.0
-                        }
-                    }
-                    hbox {
-                        button("+") {
-                            isFocusTraversable = false
-                            action {
-                                constantTempo.value += 1.0
-                            }
-                        }
-                        button("o") {
-                            isFocusTraversable = false
-                            action {
-                                constantTempo.value = Tempo(songTempo.value?.bpm?.roundToInt()?.toDouble() ?: 120.0)
-                            }
-                        }
-                        button("-") {
-                            isFocusTraversable = false
-                            action {
-                                constantTempo.value -= 1.0
-                            }
-                        }
-                    }
-                }
+
+        hbox {
+            label("Playback tempo: ")
+            label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
             }
         }
         hbox {
@@ -221,6 +182,38 @@ class PlayerView : View("Player") {
             label(songTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
                 minWidth = 50.0
                 maxWidth = 50.0
+            }
+        }
+        vbox {
+            label(tempoMultiplier.stringBinding { m -> String.format("Tempo multiplier: %.2f", m) }) {
+                minWidth = 200.0
+                maxWidth = 200.0
+            }
+        }
+        vbox {
+            radiobutton("Multiply", tempoModeGroup, value = TempoMode.MULTIPLIER)
+            radiobutton("Constant", tempoModeGroup, value = TempoMode.CONSTANT)
+        }
+        hbox {
+            button("+") {
+                shortcut("W")
+                isFocusTraversable = false
+                action {
+                    adjustCurrentTempoMode(TempoAdjustment.INCREASE)
+                }
+            }
+            button("o") {
+                isFocusTraversable = false
+                action {
+                    adjustCurrentTempoMode(TempoAdjustment.RESET)
+                }
+            }
+            button("-") {
+                shortcut("S")
+                isFocusTraversable = false
+                action {
+                    adjustCurrentTempoMode(TempoAdjustment.DECREASE)
+                }
             }
         }
         hbox {
@@ -235,6 +228,13 @@ class PlayerView : View("Player") {
             label(measureCount.stringBinding { c -> c?.toString() ?: "" }) {
                 minWidth = 50.0
                 maxWidth = 50.0
+            }
+        }
+
+        shortcut("T") {
+            tempoMode.value = when (tempoMode.value as TempoMode) {
+                TempoMode.CONSTANT -> TempoMode.MULTIPLIER
+                TempoMode.MULTIPLIER -> TempoMode.CONSTANT
             }
         }
 
@@ -261,10 +261,20 @@ class PlayerView : View("Player") {
 
         subscribe<LoadEvent> { event ->
             run {
-                engineController.setTempoModifier(tempoMultiplierFun)
+                tempoMode.value = TempoMode.MULTIPLIER
                 measureCount.value = event.measures
                 isDisable = false
             }
+        }
+
+        tempoMultiplier.onChange { multiplier ->
+            updateTempoModifier(tempoMode.value, multiplier as Double, constantTempo.value)
+        }
+        constantTempo.onChange { tempo ->
+            updateTempoModifier(tempoMode.value, tempoMultiplier.value, tempo as Tempo)
+        }
+        tempoMode.onChange { mode ->
+            updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
     }
 }
