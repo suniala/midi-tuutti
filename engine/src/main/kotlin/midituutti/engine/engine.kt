@@ -100,50 +100,6 @@ interface SingleNoteHitEngine {
     fun quit()
 }
 
-private class PlayControl : PlayerListener {
-    private val waitLock = Object()
-
-    private var currentMeasure = 1
-
-    @Volatile
-    private var playing = false
-
-    fun play(): Unit = synchronized(waitLock) {
-        val before = playing
-        playing = true
-        if (!before) waitLock.notifyAll()
-    }
-
-    fun stop() {
-        playing = false
-    }
-
-    fun isPlaying(): Boolean = playing
-
-    fun waitForPlay(): Unit = synchronized(waitLock) {
-        while (!playing) {
-            try {
-                waitLock.wait()
-            } catch (e: InterruptedException) {
-                // ignore, probably we are quitting the app
-            }
-        }
-    }
-
-    fun currentMeasure() = currentMeasure
-
-    fun setCurrentMeasure(measure: Int) {
-        currentMeasure = measure
-    }
-
-    override fun tempoChanged() { /* no-op */
-    }
-
-    override fun atMeasureStart(measure: Int, timeSignature: TimeSignature) {
-        currentMeasure = measure
-    }
-}
-
 fun createSingeNoteHitEngine(): SingleNoteHitEngine {
     val synthesizerPort = createDefaultSynthesizerPort()
 
@@ -160,8 +116,7 @@ private interface PlayerListener {
 }
 
 @ExperimentalTime
-private class Player(val playControl: PlayControl,
-                     val song: SongStructure,
+private class Player(val song: SongStructure,
                      val from: Int,
                      val to: Int,
                      var tempoModifier: (Tempo) -> Tempo,
@@ -181,6 +136,12 @@ private class Player(val playControl: PlayControl,
 
     private var tempo: Tempo? = null
 
+    private var playing = false
+
+    private val waitLock = Object()
+
+    private var currentMeasure = 1
+
     fun mute(track: EngineTrack) {
         mutedTracks.add(track)
     }
@@ -197,23 +158,24 @@ private class Player(val playControl: PlayControl,
 
     override fun run() {
         while (true) {
-            playControl.waitForPlay()
-            var startFrom = playControl.currentMeasure()
+            waitForPlay()
+            var startFrom = currentMeasure
 
             println("player: playing")
 
             try {
-                while (playControl.isPlaying()) {
+                while (playing) {
                     val playStartMark: TimeMark = TimeSource.Monotonic.markNow()
                     var prevTicks: Tick? = null
                     var prevChunkCalculatedTs = Duration.ZERO
 
                     song.measures.asSequence().drop(startFrom - 1).take(to - startFrom + 1).forEach { measure ->
                         println("player: at ${measure.number}")
+                        currentMeasure = measure.number
                         playerListeners.forEach { pl -> pl.atMeasureStart(measure.number, measure.timeSignature) }
 
                         measure.chunked().forEach { (ticks, events) ->
-                            if (playControl.isPlaying()) {
+                            if (playing) {
                                 val ticksDelta = ticks - (prevTicks ?: ticks)
                                 val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
                                 val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
@@ -280,31 +242,59 @@ private class Player(val playControl: PlayControl,
 
         return midiMessage
     }
+
+    fun isPlaying(): Boolean = playing
+
+    fun play(): Unit = synchronized(waitLock) {
+        val before = playing
+        playing = true
+        if (!before) waitLock.notifyAll()
+    }
+
+    fun stopPlaying() {
+        playing = false
+        interrupt()
+        synthesizerPort.panic()
+    }
+
+    fun setCurrentMeasure(measure: Int) {
+        currentMeasure = measure
+    }
+
+    fun currentMeasure(): Int = currentMeasure
+
+    private fun waitForPlay(): Unit = synchronized(waitLock) {
+        while (!playing) {
+            try {
+                waitLock.wait()
+            } catch (e: InterruptedException) {
+                // ignore, probably we are quitting the app
+            }
+        }
+    }
 }
 
 @ExperimentalTime
-private class PlayerEngine(val song: SongStructure, val playControl: PlayControl, val player: Player) : Engine, PlayerListener {
+private class PlayerEngine(val song: SongStructure, val player: Player) : Engine, PlayerListener {
     private val playbackListeners = mutableSetOf<PlaybackListener>()
 
-    override fun isPlaying(): Boolean = playControl.isPlaying()
+    override fun isPlaying(): Boolean = player.isPlaying()
 
     override fun play() {
         EngineTraceLogger.start()
-        playControl.play()
+        player.play()
         notify(PlayEvent(true))
     }
 
     override fun stop() {
         EngineTraceLogger.stop()
-        if (playControl.isPlaying()) {
+        if (player.isPlaying()) {
             signalStop()
         }
     }
 
     private fun signalStop() {
-        playControl.stop()
-        player.interrupt()
-        player.synthesizerPort.panic()
+        player.stopPlaying()
         notify(PlayEvent(false))
     }
 
@@ -346,7 +336,7 @@ private class PlayerEngine(val song: SongStructure, val playControl: PlayControl
 
     override fun jumpToBar(f: (Int) -> Int) {
         stop()
-        playControl.setCurrentMeasure(minOf(maxOf(f(playControl.currentMeasure()), 1), song.measures.size))
+        player.setCurrentMeasure(minOf(maxOf(f(player.currentMeasure()), 1), song.measures.size))
         play()
     }
 
@@ -363,14 +353,11 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val midiFile = openFile(filePath)
     val song = SongStructure.withClick(midiFile)
 
-    val playControl = PlayControl()
-
-    val player = Player(playControl, song, initialFrom ?: 1, initialTo ?: song.measures.size,
-            ::noOpTempoModifier, midiFile, synthesizerPort)
-    player.addPlayerListener(playControl)
+    val player = Player(song, initialFrom ?: 1, initialTo ?: song.measures.size, ::noOpTempoModifier,
+            midiFile, synthesizerPort)
     player.start()
 
-    val playerEngine = PlayerEngine(song, playControl, player)
+    val playerEngine = PlayerEngine(song, player)
     player.addPlayerListener(playerEngine)
 
     return EngineInitialState(playerEngine, song.measures.size)
