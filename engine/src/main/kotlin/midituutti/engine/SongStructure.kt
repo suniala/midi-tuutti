@@ -7,7 +7,26 @@ import midituutti.midi.MidiMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
 
-class Measure(val start: Tick, val timeSignature: TimeSignature, val events: List<EngineEvent>)
+data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSignature, val events: List<EngineEvent>) {
+    fun chunked(): Sequence<Pair<Tick, List<EngineEvent>>> = sequence {
+        var chunkEvents = arrayListOf<EngineEvent>()
+        for (event in events) {
+            if (chunkEvents.isEmpty()) {
+                chunkEvents.add(event)
+            } else {
+                if (chunkEvents.first().ticks() == event.ticks()) {
+                    chunkEvents.add(event)
+                } else {
+                    yield(Pair(chunkEvents.first().ticks(), chunkEvents.toList()))
+                    chunkEvents = arrayListOf(event)
+                }
+            }
+        }
+        if (chunkEvents.isNotEmpty()) {
+            yield(Pair(chunkEvents.first().ticks(), chunkEvents.toList()))
+        }
+    }
+}
 
 class SongStructure(val measures: List<Measure>) {
     companion object {
@@ -43,8 +62,7 @@ class SongStructure(val measures: List<Measure>) {
                         .map { t -> measure.start + beatTicks(t, ticksPerBeat, measure.timeSignature) }
                 val clickEvents = clickEventTicks
                         .mapIndexed { i, t -> ClickEvent(t, clickType(i + 1)) }
-                return Measure(measure.start, measure.timeSignature,
-                        (clickEvents + measure.events).sortedBy { e -> e.ticks() })
+                return measure.copy(events = (clickEvents + measure.events).sortedBy { e -> e.ticks() })
             }
 
             return measures.map { m -> measureClick(m) }
@@ -69,7 +87,7 @@ class SongStructure(val measures: List<Measure>) {
                                      measure: List<EngineEvent>,
                                      rem: List<MidiMessage>): List<Measure> {
             if (rem.isEmpty()) {
-                return acc + Measure(measureStart, currTimeSignature, measure)
+                return acc + Measure(acc.size + 1, measureStart, currTimeSignature, measure)
             } else {
                 val message = rem.first()
 
@@ -82,7 +100,7 @@ class SongStructure(val measures: List<Measure>) {
                     parseRec(acc, nextTimeSignature, measureStart, measure + MessageEvent(message), rem.drop(1))
                 } else {
                     parseRec(
-                            acc + Measure(measureStart, currTimeSignature, measure),
+                            acc + Measure(acc.size + 1, measureStart, currTimeSignature, measure),
                             nextTimeSignature,
                             nextMeasureStart(measureStart, currTimeSignature),
                             listOf(MessageEvent(message)),

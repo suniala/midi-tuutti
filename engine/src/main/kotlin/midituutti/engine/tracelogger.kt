@@ -55,13 +55,11 @@ object EngineTraceLogger {
     private val traceEnabled = System.getProperty("midituutti.engine.trace") == "true"
     private val queue = LinkedBlockingQueue<LogMessage>(1000 * 1000)
     private var previous: LogMessage? = null
-    private var currentMeasure = 1
     private var flushJob: Job? = null
 
     fun trace(playStartMark: TimeMark, expectedTimestampTs: Duration, ticks: Tick, expectedDeltaTs: Duration?,
-              midiMessage: MidiMessage?, startOfMeasureNo: Int?) {
+              midiMessage: MidiMessage?, currentMeasure: Int) {
         if (flushJob?.isActive == true && traceEnabled) {
-            currentMeasure = startOfMeasureNo ?: currentMeasure
             val eventTs = playStartMark.elapsedNow()
             val actualDeltaTs = previous?.let { p -> eventTs - p.timestamp }
             val expectedDeltaTs = if (previous != null && expectedDeltaTs != null) expectedDeltaTs else null
@@ -74,7 +72,6 @@ object EngineTraceLogger {
 
     fun start() {
         val outputPath = "engine-trace-${System.currentTimeMillis()}.csv"
-        currentMeasure = 0
 
         if (traceEnabled) {
             flushRows(sequenceOf(RowFormatter.heading()), outputPath)
