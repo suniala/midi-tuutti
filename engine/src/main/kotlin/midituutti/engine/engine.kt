@@ -92,6 +92,8 @@ interface Engine {
     fun setTempoModifier(f: (Tempo) -> Tempo)
 
     fun jumpToBar(f: (Int) -> Int)
+
+    fun resetMeasureRange(start: Int, end: Int)
 }
 
 interface SingleNoteHitEngine {
@@ -117,8 +119,6 @@ private interface PlayerListener {
 
 @ExperimentalTime
 private class Player(val song: SongStructure,
-                     val from: Int,
-                     val to: Int,
                      var tempoModifier: (Tempo) -> Tempo,
                      val midiFile: MidiFile,
                      val synthesizerPort: MidiPort) : Thread() {
@@ -141,6 +141,10 @@ private class Player(val song: SongStructure,
     private val waitLock = Object()
 
     private var currentMeasure = 1
+
+    private var start: Int = 1
+
+    private var end: Int? = null
 
     fun mute(track: EngineTrack) {
         mutedTracks.add(track)
@@ -169,7 +173,7 @@ private class Player(val song: SongStructure,
                     var prevTicks: Tick? = null
                     var prevChunkCalculatedTs = Duration.ZERO
 
-                    song.measures.asSequence().drop(startFrom - 1).take(to - startFrom + 1).forEach { measure ->
+                    song.measures.asSequence().drop(startFrom - 1).take(end as Int - startFrom + 1).forEach { measure ->
                         println("player: at ${measure.number}")
                         currentMeasure = measure.number
                         playerListeners.forEach { pl -> pl.atMeasureStart(measure.number, measure.timeSignature) }
@@ -201,7 +205,7 @@ private class Player(val song: SongStructure,
                     }
 
                     // Start from beginning again
-                    startFrom = from
+                    startFrom = start
                 }
             } catch (e: InterruptedException) {
                 println("player: stop playing")
@@ -258,10 +262,19 @@ private class Player(val song: SongStructure,
     }
 
     fun setCurrentMeasure(measure: Int) {
-        currentMeasure = measure
+        currentMeasure = minOf(maxOf(measure, start), end as Int)
     }
 
     fun currentMeasure(): Int = currentMeasure
+
+    fun resetMeasureRange(newStart: Int, newEnd: Int) {
+        assert(newEnd in 1..song.measures.last().number)
+        assert(newStart in 1..newEnd)
+
+        start = newStart
+        end = newEnd
+        setCurrentMeasure(start)
+    }
 
     private fun waitForPlay(): Unit = synchronized(waitLock) {
         while (!playing) {
@@ -336,7 +349,13 @@ private class PlayerEngine(val song: SongStructure, val player: Player) : Engine
 
     override fun jumpToBar(f: (Int) -> Int) {
         stop()
-        player.setCurrentMeasure(minOf(maxOf(f(player.currentMeasure()), 1), song.measures.size))
+        player.setCurrentMeasure(f(player.currentMeasure()))
+        play()
+    }
+
+    override fun resetMeasureRange(start: Int, end: Int) {
+        stop()
+        player.resetMeasureRange(start, end)
         play()
     }
 
@@ -353,8 +372,8 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val midiFile = openFile(filePath)
     val song = SongStructure.withClick(midiFile)
 
-    val player = Player(song, initialFrom ?: 1, initialTo ?: song.measures.size, ::noOpTempoModifier,
-            midiFile, synthesizerPort)
+    val player = Player(song, ::noOpTempoModifier, midiFile, synthesizerPort)
+    player.resetMeasureRange(initialFrom ?: 1, initialTo ?: song.measures.size)
     player.start()
 
     val playerEngine = PlayerEngine(song, player)

@@ -1,6 +1,7 @@
 package midituutti
 
 import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.stage.FileChooser
@@ -73,6 +74,10 @@ class EngineController : Controller() {
 
     fun jump(f: (Int) -> Int) = engine().jumpToBar(f)
 
+    fun resetMeasureRange(start: Int, end: Int) {
+        engine().resetMeasureRange(start, end)
+    }
+
     fun setTempoModifier(f: (Tempo) -> Tempo) = engine().setTempoModifier(f)
 }
 
@@ -80,6 +85,8 @@ class EngineController : Controller() {
 class PlayerView : View("Player") {
     val engineController: EngineController by param()
     private var playButton: ToggleButton by singleAssign()
+    private var startSlider: Slider by singleAssign()
+    private var endSlider: Slider by singleAssign()
     private var clickButton: ToggleButton by singleAssign()
     private var drumMuteButton: ToggleButton by singleAssign()
     private val songTempo = SimpleObjectProperty<Tempo?>()
@@ -126,6 +133,34 @@ class PlayerView : View("Player") {
                 engineController.togglePlay()
             }
         }
+
+        startSlider = slider(1, 100) {
+            value = 1.0
+            majorTickUnit = 1.0
+            blockIncrement = 10.0
+        }
+        endSlider = slider(1, 100) {
+            value = 100.0
+            majorTickUnit = 1.0
+            blockIncrement = 10.0
+        }
+
+        hbox {
+            label("Start measure: ")
+            label(startSlider.valueProperty().stringBinding { t -> t?.toInt()?.toString() ?: "---" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+
+        hbox {
+            label("End measure: ")
+            label(endSlider.valueProperty().stringBinding { t -> t?.toInt()?.toString() ?: "---" }) {
+                minWidth = 50.0
+                maxWidth = 50.0
+            }
+        }
+
         clickButton = togglebutton {
             shortcut("C") { fire() }
             val stateText = selectedProperty().stringBinding {
@@ -275,6 +310,12 @@ class PlayerView : View("Player") {
             run {
                 tempoMode.value = TempoMode.MULTIPLIER
                 measureCount.value = event.measures
+
+                startSlider.value = 1.toDouble()
+                startSlider.max = event.measures.toDouble()
+                endSlider.max = startSlider.max
+                endSlider.value = endSlider.max
+
                 isDisable = false
             }
         }
@@ -287,6 +328,29 @@ class PlayerView : View("Player") {
         }
         tempoMode.onChange { mode ->
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
+        }
+
+        startSlider.valueProperty().onChange { value ->
+            run {
+                val int = value.toInt()
+                if (endSlider.value - int < 0) endSlider.value = int.toDouble()
+            }
+        }
+        endSlider.valueProperty().onChange { value ->
+            run {
+                val int = value.toInt()
+                if (int - startSlider.value < 0) startSlider.value = int.toDouble()
+            }
+        }
+        startSlider.valueChangingProperty().onChange { changing ->
+            if (!changing) {
+                engineController.resetMeasureRange(startSlider.value.toInt(), endSlider.value.toInt())
+            }
+        }
+        endSlider.valueChangingProperty().onChange { changing ->
+            if (!changing) {
+                engineController.resetMeasureRange(startSlider.value.toInt(), endSlider.value.toInt())
+            }
         }
     }
 }
