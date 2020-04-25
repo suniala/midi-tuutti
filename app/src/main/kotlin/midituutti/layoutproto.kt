@@ -3,14 +3,38 @@ package midituutti
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
+import javafx.event.EventTarget
+import javafx.scene.Node
+import javafx.scene.control.Button
+import javafx.scene.control.ToggleButton
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
 import tornadofx.*
 
+fun EventTarget.mytogglebutton(
+        text: String? = null,
+        op: ToggleButton.() -> Unit = {}
+) = togglebutton(text) {
+    addClass(MyStyle.mytogglebutton)
+    isSelected = false
+    isFocusTraversable = false
+    op()
+}
+
+fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.() -> Unit = {}) =
+        button(text, graphic) {
+            addClass(MyStyle.mytogglebutton)
+            isFocusTraversable = false
+            op()
+        }
+
 class MyStyle : Stylesheet() {
 
     companion object {
+        val root by cssclass()
+        val button by cssclass()
+        val mytogglebutton by cssclass()
         val tempoDisplay by cssclass()
         val displayFont by cssclass()
         val playTempo by cssclass()
@@ -21,9 +45,25 @@ class MyStyle : Stylesheet() {
     }
 
     init {
-        tempoDisplay {
+        root {
             padding = box(20.px)
             backgroundColor = multi(Color.BLACK)
+        }
+
+        mytogglebutton {
+            backgroundColor = multi(c(10, 10, 10))
+            textFill = Color.GRAY
+            fontWeight = FontWeight.BOLD
+
+            and(selected) {
+                textFill = ledColor
+            }
+            and(pressed) {
+                textFill = ledColor
+            }
+        }
+
+        tempoDisplay {
         }
 
         displayFont {
@@ -45,9 +85,11 @@ class MyStyle : Stylesheet() {
 }
 
 class MainView : View("Root") {
-    val fontSize: DoubleProperty = SimpleDoubleProperty(10.0)
+    val fontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
     override val root = vbox {
+        addClass(MyStyle.root)
+
         val dynamic = vbox {
             vbox {
                 addClass(MyStyle.tempoDisplay)
@@ -82,12 +124,16 @@ class MainView : View("Root") {
                 }
             }
 
-            button("play")
-            label("label text")
-            textarea("Text area text\nand some numbers 1234567890")
-        }
-        hbox {
-            label("Non-dynamic label")
+            hbox {
+                vbox {
+                    mytogglebutton("play")
+                    hbox {
+                        mybutton("<<")
+                        mybutton("<")
+                        mybutton(">")
+                    }
+                }
+            }
         }
 
         dynamic.styleProperty().bind(Bindings.concat("-fx-font-size: ", fontSize.asString()))
@@ -99,6 +145,9 @@ class LayoutProtoApp : App() {
 
     override fun start(stage: Stage) {
         with(stage) {
+            minWidth = 400.0
+            minHeight = 300.0
+
             super.start(this)
             importStylesheet(MyStyle::class)
 
