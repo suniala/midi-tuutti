@@ -106,6 +106,11 @@ class MainView : View("Root") {
                 addClass(MyStyle.display)
 
                 hbox {
+                    pane {
+                        // spacer
+                        hgrow = Priority.ALWAYS
+                    }
+
                     vbox {
                         addClass(MyStyle.displaySection)
 
@@ -184,6 +189,11 @@ class MainView : View("Root") {
                                 }
                             }
                         }
+                    }
+
+                    pane {
+                        // spacer
+                        hgrow = Priority.ALWAYS
                     }
                 }
             }
