@@ -4,9 +4,11 @@ import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.event.EventTarget
+import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
 import javafx.scene.control.ToggleButton
+import javafx.scene.layout.Priority
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
@@ -40,7 +42,6 @@ class MyStyle : Stylesheet() {
         val display by cssclass()
         val displayMain by cssclass()
         val displaySectionTitle by cssclass()
-        val multiplier by cssclass()
         val controls by cssclass()
 
         private val colorDisplayBg = Color.BLACK
@@ -75,18 +76,17 @@ class MyStyle : Stylesheet() {
         }
 
         displayFont {
-            fontFamily = "Fixed"
+            fontFamily = "DejaVu Sans Mono"
             fontWeight = FontWeight.BOLD
             textFill = colorDisplayText
+            fontSize = 0.8.em
         }
 
         displayMain {
             fontSize = 6.em
         }
+
         displaySectionTitle {
-        }
-        multiplier {
-            padding = box(0.em, 1.em, 0.em, 0.em)
         }
 
         controls {
@@ -108,18 +108,21 @@ class MainView : View("Root") {
                 hbox {
                     vbox {
                         addClass(MyStyle.displaySection)
+
                         vbox {
                             label("bpm") {
                                 addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
                             }
-                            label("123") {
+                            label(" 93") {
                                 addClass(MyStyle.displayFont, MyStyle.displayMain)
                             }
                         }
 
                         hbox {
                             vbox {
-                                addClass(MyStyle.multiplier)
+                                hgrow = Priority.ALWAYS
+                                alignment = Pos.TOP_LEFT
+
                                 label("adjust") {
                                     addClass(MyStyle.displayFont)
                                 }
@@ -128,6 +131,9 @@ class MainView : View("Root") {
                                 }
                             }
                             vbox {
+                                hgrow = Priority.ALWAYS
+                                alignment = Pos.TOP_RIGHT
+
                                 label("song tempo") {
                                     addClass(MyStyle.displayFont)
                                 }
@@ -149,14 +155,16 @@ class MainView : View("Root") {
                             label("position") {
                                 addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
                             }
-                            label("001") {
+                            label("  1") {
                                 addClass(MyStyle.displayFont, MyStyle.displayMain)
                             }
                         }
 
                         hbox {
                             vbox {
-                                addClass(MyStyle.multiplier)
+                                hgrow = Priority.ALWAYS
+                                alignment = Pos.TOP_LEFT
+
                                 label("play range") {
                                     addClass(MyStyle.displayFont)
                                 }
@@ -165,6 +173,9 @@ class MainView : View("Root") {
                                 }
                             }
                             vbox {
+                                hgrow = Priority.ALWAYS
+                                alignment = Pos.TOP_RIGHT
+
                                 label("measures") {
                                     addClass(MyStyle.displayFont)
                                 }
@@ -219,5 +230,6 @@ class LayoutProtoApp : App() {
 }
 
 fun main(args: Array<String>) {
+    // println(javafx.scene.text.Font.getFamilies())
     launch<LayoutProtoApp>(args)
 }
