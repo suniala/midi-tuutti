@@ -8,6 +8,7 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
 import javafx.scene.control.ToggleButton
+import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
@@ -16,8 +17,9 @@ import tornadofx.*
 
 fun EventTarget.mytogglebutton(
         text: String? = null,
+        group: ToggleGroup? = null,
         op: ToggleButton.() -> Unit = {}
-) = togglebutton(text) {
+) = togglebutton(text = text, group = group) {
     addClass(MyStyle.mybutton)
     isSelected = false
     isFocusTraversable = false
@@ -28,6 +30,27 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
         button(text, graphic) {
             addClass(MyStyle.mybutton)
             isFocusTraversable = false
+            op()
+        }
+
+fun EventTarget.myslider(op: Node.() -> Unit = {}) =
+        hbox {
+            spacing = 10.0
+
+            mybutton("<") {
+                style {
+                    fontSize = 0.5.em
+                }
+            }
+            slider(1, 100) {
+                hgrow = Priority.ALWAYS
+            }
+            mybutton(">") {
+                style {
+                    fontSize = 0.5.em
+                }
+            }
+
             op()
         }
 
@@ -201,19 +224,92 @@ class MainView : View("Root") {
             hbox {
                 addClass(MyStyle.controls)
 
+                pane {
+                    // spacer
+                    hgrow = Priority.ALWAYS
+                }
+
                 vbox {
                     spacing = 10.0
 
-                    mytogglebutton("play") {
-                        useMaxWidth = true
-                    }
-
                     hbox {
                         spacing = 10.0
-                        mybutton("<<")
-                        mybutton("<")
-                        mybutton(">")
+
+                        vbox {
+                            spacing = 10.0
+
+                            mytogglebutton("Play") {
+                                useMaxWidth = true
+                            }
+
+                            hbox {
+                                spacing = 10.0
+                                mybutton("<<")
+                                mybutton("<")
+                                mybutton(">")
+                            }
+                        }
+
+                        titledpane("Channels") {
+                            isCollapsible = false
+                            style { fontSize = 0.5.em }
+
+                            vbox {
+                                spacing = 10.0
+
+                                mytogglebutton("Click off") {
+                                    useMaxWidth = true
+                                }
+
+                                mytogglebutton("Drums on") {
+                                    useMaxWidth = true
+                                    isSelected = true
+                                }
+                            }
+                        }
+
+                        titledpane("Tempo") {
+                            isCollapsible = false
+                            style { fontSize = 0.5.em }
+
+                            vbox {
+                                spacing = 10.0
+                                useMaxWidth = true
+
+                                hbox {
+                                    spacing = 10.0
+                                    useMaxWidth = true
+
+                                    val tg = togglegroup()
+                                    mytogglebutton("Song", tg) {
+                                        style { fontSize = 0.5.em }
+                                    }
+                                    mytogglebutton("Fixed", tg) {
+                                        style { fontSize = 0.5.em }
+                                    }
+                                }
+
+                                hbox {
+                                    spacing = 10.0
+                                    mybutton("‒") {
+                                        style { fontSize = 0.5.em }
+                                    }
+                                    mybutton("O") {
+                                        style { fontSize = 0.5.em }
+                                    }
+                                    mybutton("+") {
+                                        style { fontSize = 0.5.em }
+                                    }
+                                }
+                            }
+                        }
                     }
+                    myslider() { }
+                    myslider() { }
+                }
+                pane {
+                    // spacer
+                    hgrow = Priority.ALWAYS
                 }
             }
         }
@@ -234,7 +330,7 @@ class LayoutProtoApp : App() {
             importStylesheet(MyStyle::class)
 
             val view = find(MainView::class)
-            view.fontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(50))
+            view.fontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(55))
         }
     }
 }
