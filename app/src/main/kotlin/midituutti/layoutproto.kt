@@ -16,7 +16,7 @@ fun EventTarget.mytogglebutton(
         text: String? = null,
         op: ToggleButton.() -> Unit = {}
 ) = togglebutton(text) {
-    addClass(MyStyle.mytogglebutton)
+    addClass(MyStyle.mybutton)
     isSelected = false
     isFocusTraversable = false
     op()
@@ -24,7 +24,7 @@ fun EventTarget.mytogglebutton(
 
 fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.() -> Unit = {}) =
         button(text, graphic) {
-            addClass(MyStyle.mytogglebutton)
+            addClass(MyStyle.mybutton)
             isFocusTraversable = false
             op()
         }
@@ -33,37 +33,30 @@ class MyStyle : Stylesheet() {
 
     companion object {
         val root by cssclass()
-        val button by cssclass()
-        val mytogglebutton by cssclass()
-        val tempoDisplay by cssclass()
+        val mybutton by cssclass()
+        val display by cssclass()
         val displayFont by cssclass()
         val playTempo by cssclass()
         val playTempoUnit by cssclass()
         val multiplier by cssclass()
+        val controls by cssclass()
 
         private val ledColor = Color.LIGHTGREEN
     }
 
     init {
         root {
-            padding = box(20.px)
-            backgroundColor = multi(Color.BLACK)
+            padding = box(10.px)
         }
 
-        mytogglebutton {
-            backgroundColor = multi(c(10, 10, 10))
-            textFill = Color.GRAY
+        mybutton {
             fontWeight = FontWeight.BOLD
-
-            and(selected) {
-                textFill = ledColor
-            }
-            and(pressed) {
-                textFill = ledColor
-            }
         }
 
-        tempoDisplay {
+        display {
+            padding = box(10.px)
+            backgroundColor = multi(Color.BLACK)
+            borderRadius = multi(box(10.px))
         }
 
         displayFont {
@@ -81,6 +74,10 @@ class MyStyle : Stylesheet() {
         multiplier {
             padding = box(0.em, 1.em, 0.em, 0.em)
         }
+
+        controls {
+            padding = box(10.px, 0.px)
+        }
     }
 }
 
@@ -92,7 +89,7 @@ class MainView : View("Root") {
 
         val dynamic = vbox {
             vbox {
-                addClass(MyStyle.tempoDisplay)
+                addClass(MyStyle.display)
 
                 hbox {
                     label("123") {
@@ -125,9 +122,17 @@ class MainView : View("Root") {
             }
 
             hbox {
+                addClass(MyStyle.controls)
+
                 vbox {
-                    mytogglebutton("play")
+                    spacing = 10.0
+
+                    mytogglebutton("play") {
+                        useMaxWidth = true
+                    }
+
                     hbox {
+                        spacing = 10.0
                         mybutton("<<")
                         mybutton("<")
                         mybutton(">")
