@@ -34,19 +34,23 @@ class MyStyle : Stylesheet() {
     companion object {
         val root by cssclass()
         val mybutton by cssclass()
-        val display by cssclass()
+        val displaySection by cssclass()
         val displayFont by cssclass()
-        val playTempo by cssclass()
-        val playTempoUnit by cssclass()
+        val displaySectionSeparator by cssclass()
+        val display by cssclass()
+        val displayMain by cssclass()
+        val displaySectionTitle by cssclass()
         val multiplier by cssclass()
         val controls by cssclass()
 
-        private val ledColor = Color.LIGHTGREEN
+        private val colorDisplayBg = Color.BLACK
+        private val colorDisplayText = Color.LIGHTGREEN
+        private val padCommon = 0.5.em
     }
 
     init {
         root {
-            padding = box(10.px)
+            padding = box(padCommon)
         }
 
         mybutton {
@@ -54,22 +58,32 @@ class MyStyle : Stylesheet() {
         }
 
         display {
-            padding = box(10.px)
-            backgroundColor = multi(Color.BLACK)
-            borderRadius = multi(box(10.px))
+            backgroundColor = multi(colorDisplayBg)
+        }
+
+        displaySection {
+            padding = box(padCommon)
+        }
+
+        displaySectionSeparator {
+            borderColor = multi(box(colorDisplayBg))
+            borderWidth = multi(box(padCommon, 0.px, padCommon, 0.px))
+            backgroundColor = multi(c(20, 20, 20))
+            fitToHeight = true
+            minWidth = 4.px
+            maxWidth = 4.px
         }
 
         displayFont {
             fontFamily = "Fixed"
             fontWeight = FontWeight.BOLD
-            textFill = ledColor
+            textFill = colorDisplayText
         }
 
-        playTempo {
+        displayMain {
             fontSize = 6.em
         }
-        playTempoUnit {
-            padding = box(4.8.em, 0.em, 0.2.em, 0.em)
+        displaySectionTitle {
         }
         multiplier {
             padding = box(0.em, 1.em, 0.em, 0.em)
@@ -92,30 +106,72 @@ class MainView : View("Root") {
                 addClass(MyStyle.display)
 
                 hbox {
-                    label("123") {
-                        addClass(MyStyle.displayFont, MyStyle.playTempo)
-                    }
-                    label("bpm") {
-                        addClass(MyStyle.displayFont, MyStyle.playTempoUnit)
-                    }
-                }
+                    vbox {
+                        addClass(MyStyle.displaySection)
+                        vbox {
+                            label("bpm") {
+                                addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
+                            }
+                            label("123") {
+                                addClass(MyStyle.displayFont, MyStyle.displayMain)
+                            }
+                        }
 
-                hbox {
-                    vbox {
-                        addClass(MyStyle.multiplier)
-                        label("multiplier") {
-                            addClass(MyStyle.displayFont)
-                        }
-                        label("1.05x") {
-                            addClass(MyStyle.displayFont)
+                        hbox {
+                            vbox {
+                                addClass(MyStyle.multiplier)
+                                label("adjust") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                                label("105 %") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                            }
+                            vbox {
+                                label("song tempo") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                                label("120 bpm") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                            }
                         }
                     }
+
+                    pane {
+                        addClass(MyStyle.displaySectionSeparator)
+                    }
+
                     vbox {
-                        label("song tempo") {
-                            addClass(MyStyle.displayFont)
+                        addClass(MyStyle.displaySection)
+
+                        vbox {
+                            label("position") {
+                                addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
+                            }
+                            label("001") {
+                                addClass(MyStyle.displayFont, MyStyle.displayMain)
+                            }
                         }
-                        label("120 bpm") {
-                            addClass(MyStyle.displayFont)
+
+                        hbox {
+                            vbox {
+                                addClass(MyStyle.multiplier)
+                                label("play range") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                                label("120 ‒ 165") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                            }
+                            vbox {
+                                label("measures") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                                label("185") {
+                                    addClass(MyStyle.displayFont)
+                                }
+                            }
                         }
                     }
                 }
