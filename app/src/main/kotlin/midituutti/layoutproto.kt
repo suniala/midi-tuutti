@@ -13,6 +13,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
+import midituutti.MyStyle.Companion.commonSpacing
 import tornadofx.*
 
 fun EventTarget.mytogglebutton(
@@ -35,7 +36,9 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
 
 fun EventTarget.myslider(op: Node.() -> Unit = {}) =
         hbox {
-            spacing = 10.0
+            style {
+                spacing = commonSpacing
+            }
 
             mybutton("<") {
                 style {
@@ -70,6 +73,7 @@ class MyStyle : Stylesheet() {
         private val colorDisplayBg = Color.BLACK
         private val colorDisplayText = Color.LIGHTGREEN
         private val padCommon = 0.5.em
+        val commonSpacing = 0.4.em
     }
 
     init {
@@ -230,20 +234,28 @@ class MainView : View("Root") {
                 }
 
                 vbox {
-                    spacing = 10.0
+                    style {
+                        spacing = commonSpacing
+                    }
 
                     hbox {
-                        spacing = 10.0
+                        style {
+                            spacing = commonSpacing
+                        }
 
                         vbox {
-                            spacing = 10.0
+                            style {
+                                spacing = commonSpacing
+                            }
 
                             mytogglebutton("Play") {
                                 useMaxWidth = true
                             }
 
                             hbox {
-                                spacing = 10.0
+                                style {
+                                    spacing = commonSpacing
+                                }
                                 mybutton("<<")
                                 mybutton("<")
                                 mybutton(">")
@@ -255,7 +267,10 @@ class MainView : View("Root") {
                             style { fontSize = 0.5.em }
 
                             vbox {
-                                spacing = 10.0
+                                style {
+                                    padding = box(1.1.em)
+                                    spacing = commonSpacing
+                                }
 
                                 mytogglebutton("Click off") {
                                     useMaxWidth = true
@@ -273,11 +288,16 @@ class MainView : View("Root") {
                             style { fontSize = 0.5.em }
 
                             vbox {
-                                spacing = 10.0
                                 useMaxWidth = true
+                                style {
+                                    padding = box(1.1.em)
+                                    spacing = commonSpacing
+                                }
 
                                 hbox {
-                                    spacing = 10.0
+                                    style {
+                                        spacing = commonSpacing
+                                    }
                                     useMaxWidth = true
 
                                     val tg = togglegroup()
@@ -290,7 +310,9 @@ class MainView : View("Root") {
                                 }
 
                                 hbox {
-                                    spacing = 10.0
+                                    style {
+                                        spacing = commonSpacing
+                                    }
                                     mybutton("‒") {
                                         style { fontSize = 0.5.em }
                                     }
