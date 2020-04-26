@@ -65,10 +65,12 @@ class MyStyle : Stylesheet() {
         val displaySection by cssclass()
         val displayFont by cssclass()
         val displaySectionSeparator by cssclass()
+        val controlSectionSeparator by cssclass()
         val display by cssclass()
         val displayMain by cssclass()
         val displaySectionTitle by cssclass()
         val controls by cssclass()
+        val controlTitle by cssclass()
 
         private val colorDisplayBg = Color.BLACK
         private val colorDisplayText = Color.LIGHTGREEN
@@ -102,6 +104,13 @@ class MyStyle : Stylesheet() {
             maxWidth = 4.px
         }
 
+        controlSectionSeparator {
+            backgroundColor = multi(c(200, 200, 200))
+            fitToHeight = true
+            minWidth = 2.px
+            maxWidth = 2.px
+        }
+
         displayFont {
             fontFamily = "DejaVu Sans Mono"
             fontWeight = FontWeight.BOLD
@@ -118,6 +127,11 @@ class MyStyle : Stylesheet() {
 
         controls {
             padding = box(10.px, 0.px)
+            fontSize = 0.6.em
+        }
+
+        controlTitle {
+            fontSize = 0.5.em
         }
     }
 }
@@ -248,6 +262,10 @@ class MainView : View("Root") {
                                 spacing = commonSpacing
                             }
 
+                            label("Play") {
+                                addClass(MyStyle.controlTitle)
+                            }
+
                             mytogglebutton("Play") {
                                 useMaxWidth = true
                             }
@@ -262,13 +280,21 @@ class MainView : View("Root") {
                             }
                         }
 
-                        titledpane("Channels") {
-                            isCollapsible = false
-                            style { fontSize = 0.5.em }
+                        pane {
+                            addClass(MyStyle.controlSectionSeparator)
+                        }
+
+                        vbox {
+                            style {
+                                spacing = commonSpacing
+                            }
+
+                            label("Channels") {
+                                addClass(MyStyle.controlTitle)
+                            }
 
                             vbox {
                                 style {
-                                    padding = box(1.1.em)
                                     spacing = commonSpacing
                                 }
 
@@ -283,14 +309,22 @@ class MainView : View("Root") {
                             }
                         }
 
-                        titledpane("Tempo") {
-                            isCollapsible = false
-                            style { fontSize = 0.5.em }
+                        pane {
+                            addClass(MyStyle.controlSectionSeparator)
+                        }
+
+                        vbox {
+                            style {
+                                spacing = commonSpacing
+                            }
+
+                            label("Tempo") {
+                                addClass(MyStyle.controlTitle)
+                            }
 
                             vbox {
                                 useMaxWidth = true
                                 style {
-                                    padding = box(1.1.em)
                                     spacing = commonSpacing
                                 }
 
@@ -302,10 +336,8 @@ class MainView : View("Root") {
 
                                     val tg = togglegroup()
                                     mytogglebutton("Song", tg) {
-                                        style { fontSize = 0.5.em }
                                     }
                                     mytogglebutton("Fixed", tg) {
-                                        style { fontSize = 0.5.em }
                                     }
                                 }
 
@@ -314,13 +346,10 @@ class MainView : View("Root") {
                                         spacing = commonSpacing
                                     }
                                     mybutton("‒") {
-                                        style { fontSize = 0.5.em }
                                     }
                                     mybutton("O") {
-                                        style { fontSize = 0.5.em }
                                     }
                                     mybutton("+") {
-                                        style { fontSize = 0.5.em }
                                     }
                                 }
                             }
@@ -352,7 +381,7 @@ class LayoutProtoApp : App() {
             importStylesheet(MyStyle::class)
 
             val view = find(MainView::class)
-            view.fontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(55))
+            view.fontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(65))
         }
     }
 }
