@@ -14,6 +14,11 @@ import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
 import midituutti.MyStyle.Companion.commonSpacing
+import midituutti.MyStyle.Companion.fontRemControlButton
+import midituutti.MyStyle.Companion.fontRemControlSliderButton
+import midituutti.MyStyle.Companion.fontRemControlTitle
+import midituutti.MyStyle.Companion.fontRemDisplayMain
+import midituutti.MyStyle.Companion.fontRemDisplaySub
 import tornadofx.*
 
 fun EventTarget.mytogglebutton(
@@ -34,28 +39,28 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
             op()
         }
 
-fun EventTarget.myslider(op: Node.() -> Unit = {}) =
+fun EventTarget.myslider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}) =
         hbox {
             style {
                 spacing = commonSpacing
             }
 
             mybutton("<") {
-                style {
-                    fontSize = 0.5.em
-                }
+                remFontBinding(fontRemControlSliderButton, rootFontSize)
             }
             slider(1, 100) {
                 hgrow = Priority.ALWAYS
+                remFontBinding(fontRemControlButton, rootFontSize)
             }
             mybutton(">") {
-                style {
-                    fontSize = 0.5.em
-                }
+                remFontBinding(fontRemControlSliderButton, rootFontSize)
             }
 
             op()
         }
+
+fun Node.remFontBinding(rem: Double, rootFontSize: DoubleProperty) =
+        styleProperty().bind(Bindings.concat("-fx-font-size: ", rootFontSize.multiply(rem)))
 
 class MyStyle : Stylesheet() {
 
@@ -76,6 +81,12 @@ class MyStyle : Stylesheet() {
         private val colorDisplayText = Color.LIGHTGREEN
         private val padCommon = 0.5.em
         val commonSpacing = 0.4.em
+
+        const val fontRemDisplayMain = 6.0
+        const val fontRemDisplaySub = 0.8
+        const val fontRemControlTitle = 0.8
+        const val fontRemControlButton = 0.8
+        const val fontRemControlSliderButton = 0.5
     }
 
     init {
@@ -115,11 +126,9 @@ class MyStyle : Stylesheet() {
             fontFamily = "DejaVu Sans Mono"
             fontWeight = FontWeight.BOLD
             textFill = colorDisplayText
-            fontSize = 0.8.em
         }
 
         displayMain {
-            fontSize = 6.em
         }
 
         displaySectionTitle {
@@ -127,17 +136,15 @@ class MyStyle : Stylesheet() {
 
         controls {
             padding = box(10.px, 0.px)
-            fontSize = 0.6.em
         }
 
         controlTitle {
-            fontSize = 0.5.em
         }
     }
 }
 
 class MainView : View("Root") {
-    val fontSize: DoubleProperty = SimpleDoubleProperty(50.0)
+    val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
     override val root = vbox {
         addClass(MyStyle.root)
@@ -158,9 +165,11 @@ class MainView : View("Root") {
                         vbox {
                             label("bpm") {
                                 addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
+                                remFontBinding(fontRemDisplaySub, rootFontSize)
                             }
                             label(" 93") {
                                 addClass(MyStyle.displayFont, MyStyle.displayMain)
+                                remFontBinding(fontRemDisplayMain, rootFontSize)
                             }
                         }
 
@@ -171,9 +180,11 @@ class MainView : View("Root") {
 
                                 label("adjust") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                                 label("105 %") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                             }
                             vbox {
@@ -182,9 +193,11 @@ class MainView : View("Root") {
 
                                 label("song tempo") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                                 label("120 bpm") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                             }
                         }
@@ -200,9 +213,11 @@ class MainView : View("Root") {
                         vbox {
                             label("position") {
                                 addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
+                                remFontBinding(fontRemDisplaySub, rootFontSize)
                             }
                             label("  1") {
                                 addClass(MyStyle.displayFont, MyStyle.displayMain)
+                                remFontBinding(fontRemDisplayMain, rootFontSize)
                             }
                         }
 
@@ -213,9 +228,11 @@ class MainView : View("Root") {
 
                                 label("play range") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                                 label("120 ‒ 165") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                             }
                             vbox {
@@ -224,9 +241,11 @@ class MainView : View("Root") {
 
                                 label("measures") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                                 label("185") {
                                     addClass(MyStyle.displayFont)
+                                    remFontBinding(fontRemDisplaySub, rootFontSize)
                                 }
                             }
                         }
@@ -264,19 +283,27 @@ class MainView : View("Root") {
 
                             label("Play") {
                                 addClass(MyStyle.controlTitle)
+                                remFontBinding(fontRemControlTitle, rootFontSize)
                             }
 
                             mytogglebutton("Play") {
                                 useMaxWidth = true
+                                remFontBinding(fontRemControlButton, rootFontSize)
                             }
 
                             hbox {
                                 style {
                                     spacing = commonSpacing
                                 }
-                                mybutton("<<")
-                                mybutton("<")
-                                mybutton(">")
+                                mybutton("<<") {
+                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                }
+                                mybutton("<") {
+                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                }
+                                mybutton(">") {
+                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                }
                             }
                         }
 
@@ -291,6 +318,7 @@ class MainView : View("Root") {
 
                             label("Channels") {
                                 addClass(MyStyle.controlTitle)
+                                remFontBinding(fontRemControlTitle, rootFontSize)
                             }
 
                             vbox {
@@ -300,11 +328,13 @@ class MainView : View("Root") {
 
                                 mytogglebutton("Click off") {
                                     useMaxWidth = true
+                                    remFontBinding(fontRemControlButton, rootFontSize)
                                 }
 
                                 mytogglebutton("Drums on") {
                                     useMaxWidth = true
                                     isSelected = true
+                                    remFontBinding(fontRemControlButton, rootFontSize)
                                 }
                             }
                         }
@@ -320,6 +350,7 @@ class MainView : View("Root") {
 
                             label("Tempo") {
                                 addClass(MyStyle.controlTitle)
+                                remFontBinding(fontRemControlTitle, rootFontSize)
                             }
 
                             vbox {
@@ -336,8 +367,10 @@ class MainView : View("Root") {
 
                                     val tg = togglegroup()
                                     mytogglebutton("Song", tg) {
+                                        remFontBinding(fontRemControlButton, rootFontSize)
                                     }
                                     mytogglebutton("Fixed", tg) {
+                                        remFontBinding(fontRemControlButton, rootFontSize)
                                     }
                                 }
 
@@ -346,17 +379,20 @@ class MainView : View("Root") {
                                         spacing = commonSpacing
                                     }
                                     mybutton("‒") {
+                                        remFontBinding(fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("O") {
+                                        remFontBinding(fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("+") {
+                                        remFontBinding(fontRemControlButton, rootFontSize)
                                     }
                                 }
                             }
                         }
                     }
-                    myslider() { }
-                    myslider() { }
+                    myslider(rootFontSize) { }
+                    myslider(rootFontSize) { }
                 }
                 pane {
                     // spacer
@@ -364,8 +400,6 @@ class MainView : View("Root") {
                 }
             }
         }
-
-        dynamic.styleProperty().bind(Bindings.concat("-fx-font-size: ", fontSize.asString()))
     }
 }
 
@@ -381,7 +415,7 @@ class LayoutProtoApp : App() {
             importStylesheet(MyStyle::class)
 
             val view = find(MainView::class)
-            view.fontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(65))
+            view.rootFontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(65))
         }
     }
 }
