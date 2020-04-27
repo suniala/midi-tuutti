@@ -13,12 +13,13 @@ import javafx.scene.layout.Priority
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
-import midituutti.MyStyle.Companion.commonSpacing
 import midituutti.MyStyle.Companion.fontRemControlButton
 import midituutti.MyStyle.Companion.fontRemControlSliderButton
 import midituutti.MyStyle.Companion.fontRemControlTitle
 import midituutti.MyStyle.Companion.fontRemDisplayMain
 import midituutti.MyStyle.Companion.fontRemDisplaySub
+import midituutti.MyStyle.Companion.padRemCommon
+import midituutti.MyStyle.Companion.spacingRemCommon
 import tornadofx.*
 
 fun EventTarget.mytogglebutton(
@@ -41,59 +42,60 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
 
 fun EventTarget.myslider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}) =
         hbox {
-            style {
-                spacing = commonSpacing
-            }
+            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
             mybutton("<") {
-                remFontBinding(fontRemControlSliderButton, rootFontSize)
+                remBinding(CssProperty.fontSize, fontRemControlSliderButton, rootFontSize)
             }
             slider(1, 100) {
                 hgrow = Priority.ALWAYS
-                remFontBinding(fontRemControlButton, rootFontSize)
+                remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
             }
             mybutton(">") {
-                remFontBinding(fontRemControlSliderButton, rootFontSize)
+                remBinding(CssProperty.fontSize, fontRemControlSliderButton, rootFontSize)
             }
 
             op()
         }
 
-fun Node.remFontBinding(rem: Double, rootFontSize: DoubleProperty) =
-        styleProperty().bind(Bindings.concat("-fx-font-size: ", rootFontSize.multiply(rem)))
+@Suppress("EnumEntryName")
+enum class CssProperty(val propName: String) {
+    borderWidth("-fx-border-width"),
+    fontSize("-fx-font-size"),
+    padding("-fx-padding"),
+    spacing("-fx-spacing"),
+}
+
+fun Node.remBinding(cssProperty: CssProperty, rem: Double, rootFontSize: DoubleProperty): Unit =
+        styleProperty().bind(Bindings.concat("${cssProperty.propName}: ",
+                rootFontSize.multiply(rem).stringBinding { pxSize -> "${pxSize}px" }))
+
+fun Node.remBinding(cssProperty: CssProperty, f: (rem: (Double) -> String) -> String, rootFontSize: DoubleProperty): Unit =
+        styleProperty().bind(Bindings.concat("${cssProperty.propName}: ",
+                rootFontSize.stringBinding { rfs -> f(fun(rems: Double): String = "${rems * rfs as Double}px") }))
 
 class MyStyle : Stylesheet() {
 
     companion object {
-        val root by cssclass()
         val mybutton by cssclass()
-        val displaySection by cssclass()
         val displayFont by cssclass()
         val displaySectionSeparator by cssclass()
         val controlSectionSeparator by cssclass()
         val display by cssclass()
-        val displayMain by cssclass()
-        val displaySectionTitle by cssclass()
-        val controls by cssclass()
-        val controlTitle by cssclass()
 
         private val colorDisplayBg = Color.BLACK
         private val colorDisplayText = Color.LIGHTGREEN
-        private val padCommon = 0.5.em
-        val commonSpacing = 0.4.em
 
         const val fontRemDisplayMain = 6.0
         const val fontRemDisplaySub = 0.8
         const val fontRemControlTitle = 0.8
         const val fontRemControlButton = 0.8
         const val fontRemControlSliderButton = 0.5
+        const val padRemCommon = 0.5
+        const val spacingRemCommon = 0.4
     }
 
     init {
-        root {
-            padding = box(padCommon)
-        }
-
         mybutton {
             fontWeight = FontWeight.BOLD
         }
@@ -102,13 +104,8 @@ class MyStyle : Stylesheet() {
             backgroundColor = multi(colorDisplayBg)
         }
 
-        displaySection {
-            padding = box(padCommon)
-        }
-
         displaySectionSeparator {
             borderColor = multi(box(colorDisplayBg))
-            borderWidth = multi(box(padCommon, 0.px, padCommon, 0.px))
             backgroundColor = multi(c(20, 20, 20))
             fitToHeight = true
             minWidth = 4.px
@@ -127,19 +124,6 @@ class MyStyle : Stylesheet() {
             fontWeight = FontWeight.BOLD
             textFill = colorDisplayText
         }
-
-        displayMain {
-        }
-
-        displaySectionTitle {
-        }
-
-        controls {
-            padding = box(10.px, 0.px)
-        }
-
-        controlTitle {
-        }
     }
 }
 
@@ -147,9 +131,9 @@ class MainView : View("Root") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
     override val root = vbox {
-        addClass(MyStyle.root)
+        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
 
-        val dynamic = vbox {
+        vbox {
             vbox {
                 addClass(MyStyle.display)
 
@@ -160,16 +144,16 @@ class MainView : View("Root") {
                     }
 
                     vbox {
-                        addClass(MyStyle.displaySection)
+                        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
 
                         vbox {
                             label("bpm") {
-                                addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
-                                remFontBinding(fontRemDisplaySub, rootFontSize)
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                             }
                             label(" 93") {
-                                addClass(MyStyle.displayFont, MyStyle.displayMain)
-                                remFontBinding(fontRemDisplayMain, rootFontSize)
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplayMain, rootFontSize)
                             }
                         }
 
@@ -180,11 +164,11 @@ class MainView : View("Root") {
 
                                 label("adjust") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                                 label("105 %") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                             }
                             vbox {
@@ -193,11 +177,11 @@ class MainView : View("Root") {
 
                                 label("song tempo") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                                 label("120 bpm") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                             }
                         }
@@ -205,19 +189,22 @@ class MainView : View("Root") {
 
                     pane {
                         addClass(MyStyle.displaySectionSeparator)
+                        remBinding(CssProperty.borderWidth,
+                                fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px",
+                                rootFontSize)
                     }
 
                     vbox {
-                        addClass(MyStyle.displaySection)
+                        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
 
                         vbox {
                             label("position") {
-                                addClass(MyStyle.displayFont, MyStyle.displaySectionTitle)
-                                remFontBinding(fontRemDisplaySub, rootFontSize)
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                             }
                             label("  1") {
-                                addClass(MyStyle.displayFont, MyStyle.displayMain)
-                                remFontBinding(fontRemDisplayMain, rootFontSize)
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplayMain, rootFontSize)
                             }
                         }
 
@@ -228,11 +215,11 @@ class MainView : View("Root") {
 
                                 label("play range") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                                 label("120 ‒ 165") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                             }
                             vbox {
@@ -241,11 +228,11 @@ class MainView : View("Root") {
 
                                 label("measures") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                                 label("185") {
                                     addClass(MyStyle.displayFont)
-                                    remFontBinding(fontRemDisplaySub, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
                                 }
                             }
                         }
@@ -259,7 +246,7 @@ class MainView : View("Root") {
             }
 
             hbox {
-                addClass(MyStyle.controls)
+                remBinding(CssProperty.padding, padRemCommon, rootFontSize)
 
                 pane {
                     // spacer
@@ -267,42 +254,33 @@ class MainView : View("Root") {
                 }
 
                 vbox {
-                    style {
-                        spacing = commonSpacing
-                    }
+                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                     hbox {
-                        style {
-                            spacing = commonSpacing
-                        }
+                        remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                         vbox {
-                            style {
-                                spacing = commonSpacing
-                            }
+                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                             label("Play") {
-                                addClass(MyStyle.controlTitle)
-                                remFontBinding(fontRemControlTitle, rootFontSize)
+                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
                             }
 
                             mytogglebutton("Play") {
                                 useMaxWidth = true
-                                remFontBinding(fontRemControlButton, rootFontSize)
+                                remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                             }
 
                             hbox {
-                                style {
-                                    spacing = commonSpacing
-                                }
+                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
                                 mybutton("<<") {
-                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                 }
                                 mybutton("<") {
-                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                 }
                                 mybutton(">") {
-                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                 }
                             }
                         }
@@ -312,29 +290,24 @@ class MainView : View("Root") {
                         }
 
                         vbox {
-                            style {
-                                spacing = commonSpacing
-                            }
+                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                             label("Channels") {
-                                addClass(MyStyle.controlTitle)
-                                remFontBinding(fontRemControlTitle, rootFontSize)
+                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
                             }
 
                             vbox {
-                                style {
-                                    spacing = commonSpacing
-                                }
+                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                                 mytogglebutton("Click off") {
                                     useMaxWidth = true
-                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                 }
 
                                 mytogglebutton("Drums on") {
                                     useMaxWidth = true
                                     isSelected = true
-                                    remFontBinding(fontRemControlButton, rootFontSize)
+                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                 }
                             }
                         }
@@ -344,48 +317,39 @@ class MainView : View("Root") {
                         }
 
                         vbox {
-                            style {
-                                spacing = commonSpacing
-                            }
+                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                             label("Tempo") {
-                                addClass(MyStyle.controlTitle)
-                                remFontBinding(fontRemControlTitle, rootFontSize)
+                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
                             }
 
                             vbox {
                                 useMaxWidth = true
-                                style {
-                                    spacing = commonSpacing
-                                }
+                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                                 hbox {
-                                    style {
-                                        spacing = commonSpacing
-                                    }
+                                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
                                     useMaxWidth = true
 
                                     val tg = togglegroup()
                                     mytogglebutton("Song", tg) {
-                                        remFontBinding(fontRemControlButton, rootFontSize)
+                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                     mytogglebutton("Fixed", tg) {
-                                        remFontBinding(fontRemControlButton, rootFontSize)
+                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                 }
 
                                 hbox {
-                                    style {
-                                        spacing = commonSpacing
-                                    }
+                                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
                                     mybutton("‒") {
-                                        remFontBinding(fontRemControlButton, rootFontSize)
+                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("O") {
-                                        remFontBinding(fontRemControlButton, rootFontSize)
+                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("+") {
-                                        remFontBinding(fontRemControlButton, rootFontSize)
+                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                 }
                             }
