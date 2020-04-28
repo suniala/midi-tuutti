@@ -107,14 +107,12 @@ class MyStyle : Stylesheet() {
         displaySectionSeparator {
             borderColor = multi(box(colorDisplayBg))
             backgroundColor = multi(c(20, 20, 20))
-            fitToHeight = true
             minWidth = 4.px
             maxWidth = 4.px
         }
 
         controlSectionSeparator {
             backgroundColor = multi(c(200, 200, 200))
-            fitToHeight = true
             minWidth = 2.px
             maxWidth = 2.px
         }
@@ -332,12 +330,10 @@ class MainView : View("Root") {
                             }
 
                             vbox {
-                                useMaxWidth = true
                                 remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
 
                                 hbox {
                                     remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
-                                    useMaxWidth = true
 
                                     val tg = togglegroup()
                                     mytogglebutton("Song", tg) {
@@ -354,6 +350,8 @@ class MainView : View("Root") {
                                         remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("O") {
+                                        hgrow = Priority.ALWAYS
+                                        useMaxWidth = true
                                         remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
                                     }
                                     mybutton("+") {
