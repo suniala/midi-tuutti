@@ -364,6 +364,8 @@ class MainView : View("Root") {
                 }
             }
         }
+
+        shortcut("F11") { primaryStage.isFullScreen = true }
     }
 }
 
@@ -383,10 +385,9 @@ class LayoutProtoApp : App() {
 
             // Set dimensions after view has been initialized so as to make view contents scale according to
             // window dimensions.
-            minHeight = preferredHeight
-            minWidth = preferredWidth
-            maxHeight = preferredHeight
-            maxWidth = preferredWidth
+            height = preferredHeight
+            width = preferredWidth
+            isResizable = false
 
             /*
             // Limit window aspect ratio. Basically works but only allows resizing vertically. Also, maximizing
