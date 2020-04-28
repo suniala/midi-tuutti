@@ -130,10 +130,18 @@ class MyStyle : Stylesheet() {
 class MainView : View("Root") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
-    override val root = vbox {
-        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+    override val root = borderpane() {
+        top = menubar {
+            menu("File") {
+                item("Open", "Shortcut+O").action { }
+                separator()
+                item("Quit")
+            }
+        }
 
-        vbox {
+        bottom = vbox {
+            remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+
             vbox {
                 addClass(MyStyle.display)
 
@@ -381,7 +389,7 @@ class LayoutProtoApp : App() {
             importStylesheet(MyStyle::class)
 
             val view = find(MainView::class)
-            view.rootFontSize.bind(scene.heightProperty().divide(21))
+            view.rootFontSize.bind(scene.heightProperty().divide(22))
 
             // Set dimensions after view has been initialized so as to make view contents scale according to
             // window dimensions.
