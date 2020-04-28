@@ -144,10 +144,7 @@ class MainView : View("Root") {
                 addClass(MyStyle.display)
 
                 hbox {
-                    pane {
-                        // spacer
-                        hgrow = Priority.ALWAYS
-                    }
+                    spacer()
 
                     vbox {
                         remBinding(CssProperty.padding, padRemCommon, rootFontSize)
@@ -244,20 +241,14 @@ class MainView : View("Root") {
                         }
                     }
 
-                    pane {
-                        // spacer
-                        hgrow = Priority.ALWAYS
-                    }
+                    spacer()
                 }
             }
 
             hbox {
                 remBinding(CssProperty.padding, padRemCommon, rootFontSize)
 
-                pane {
-                    // spacer
-                    hgrow = Priority.ALWAYS
-                }
+                spacer()
 
                 vbox {
                     remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
@@ -364,10 +355,8 @@ class MainView : View("Root") {
                     myslider(rootFontSize) { }
                     myslider(rootFontSize) { }
                 }
-                pane {
-                    // spacer
-                    hgrow = Priority.ALWAYS
-                }
+
+                spacer()
             }
         }
 
