@@ -370,16 +370,33 @@ class MainView : View("Root") {
 class LayoutProtoApp : App() {
     override val primaryView = MainView::class
 
+    private val preferredHeight = 400.0
+    private val preferredWidth = preferredHeight * 1.2
+
     override fun start(stage: Stage) {
         with(stage) {
-            minWidth = 400.0
-            minHeight = 300.0
-
             super.start(this)
             importStylesheet(MyStyle::class)
 
             val view = find(MainView::class)
-            view.rootFontSize.bind(scene.widthProperty().add(scene.heightProperty()).divide(65))
+            view.rootFontSize.bind(scene.heightProperty().divide(21))
+
+            // Set dimensions after view has been initialized so as to make view contents scale according to
+            // window dimensions.
+            minHeight = preferredHeight
+            minWidth = preferredWidth
+            maxHeight = preferredHeight
+            maxWidth = preferredWidth
+
+            /*
+            // Limit window aspect ratio. Basically works but only allows resizing vertically. Also, maximizing
+            // the window does not work.
+            minHeight = 300.0
+            minWidth = minHeight * 1.2
+            val w: DoubleBinding = stage.heightProperty().multiply(1.2)
+            stage.minWidthProperty().bind(w)
+            stage.maxWidthProperty().bind(w)
+             */
         }
     }
 }
