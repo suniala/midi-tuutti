@@ -45,32 +45,31 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
 
 fun EventTarget.myslider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}) =
         hbox {
-            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+            style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
             mybutton("<") {
-                remBinding(CssProperty.fontSize, fontRemControlSliderButton, rootFontSize)
+                style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
             }
             slider(1, 100) {
                 hgrow = Priority.ALWAYS
-                remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                style(rootFontSize) { prop(fontSize, fontRemControlButton) }
             }
             mybutton(">") {
-                remBinding(CssProperty.fontSize, fontRemControlSliderButton, rootFontSize)
+                style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
             }
 
             op()
         }
 
-@Suppress("EnumEntryName")
-enum class CssProperty(val propName: String) {
-    borderWidth("-fx-border-width"),
-    fontSize("-fx-font-size"),
-    minWidth("-fx-min-width"),
-    padding("-fx-padding"),
-    spacing("-fx-spacing"),
-}
-
 class RemStyle(private val list: MutableList<(Double) -> String>) {
+    data class CssProperty(val propName: String)
+
+    val borderWidth = CssProperty("-fx-border-width")
+    val fontSize = CssProperty("-fx-font-size")
+    val minWidth = CssProperty("-fx-min-width")
+    val padding = CssProperty("-fx-padding")
+    val spacing = CssProperty("-fx-spacing")
+
     fun prop(cssProperty: CssProperty, rem: Double) {
         list.add(fun(rfs: Double): String = "${cssProperty.propName}: ${rem * rfs}px;")
     }
@@ -92,14 +91,6 @@ fun Node.style(rootFontSize: DoubleProperty, op: RemStyle.() -> Unit = {}): RemS
 
     return remStyle
 }
-
-fun Node.remBinding(cssProperty: CssProperty, rem: Double, rootFontSize: DoubleProperty): Unit =
-        styleProperty().bind(Bindings.concat("${cssProperty.propName}: ",
-                rootFontSize.multiply(rem).stringBinding { pxSize -> "${pxSize}px" }))
-
-fun Node.remBinding(cssProperty: CssProperty, f: (rem: (Double) -> String) -> String, rootFontSize: DoubleProperty): Unit =
-        styleProperty().bind(Bindings.concat("${cssProperty.propName}: ",
-                rootFontSize.stringBinding { rfs -> f(fun(rems: Double): String = "${rems * rfs as Double}px") }))
 
 class MyStyle : Stylesheet() {
 
@@ -179,7 +170,7 @@ class MainView : View("Root") {
         }
 
         bottom = vbox {
-            remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+            style(rootFontSize) { prop(padding, padRemCommon) }
 
             vbox {
                 addClass(MyStyle.display)
@@ -188,16 +179,16 @@ class MainView : View("Root") {
                     spacer()
 
                     vbox {
-                        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+                        style(rootFontSize) { prop(padding, padRemCommon) }
 
                         vbox {
                             label("bpm") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
                             label(" 93") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplayMain, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplayMain) }
                             }
                         }
 
@@ -208,11 +199,11 @@ class MainView : View("Root") {
 
                                 label("adjust") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                                 label("105 %") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                             }
                             vbox {
@@ -221,11 +212,11 @@ class MainView : View("Root") {
 
                                 label("song tempo") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                                 label("120 bpm") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                             }
                         }
@@ -233,19 +224,20 @@ class MainView : View("Root") {
 
                     pane {
                         addClass(MyStyle.displaySectionSeparator)
-                        remBinding(CssProperty.borderWidth,
-                                fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px",
-                                rootFontSize)
+                        style(rootFontSize) {
+                            prop(borderWidth,
+                                    fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px")
+                        }
                     }
 
                     vbox {
                         style(rootFontSize) {
-                            prop(CssProperty.padding, padRemCommon)
-                            prop(CssProperty.minWidth, widthTimeSigHead)
+                            prop(padding, padRemCommon)
+                            prop(minWidth, widthTimeSigHead)
                         }
                         label("timesig") {
                             addClass(MyStyle.displayFont)
-                            remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                            style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                         }
                         vbox {
                             addClass(MyStyle.timeSignatureValue)
@@ -254,7 +246,7 @@ class MainView : View("Root") {
                                 label("12") {
                                     useMaxWidth = true
                                     addClass(MyStyle.displayFont, MyStyle.timeSignatureValue)
-                                    remBinding(CssProperty.fontSize, fontRemDisplayTimeSignature, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplayTimeSignature) }
                                 }
                                 spacer()
                             }
@@ -266,7 +258,7 @@ class MainView : View("Root") {
                                 label("4") {
                                     useMaxWidth = true
                                     addClass(MyStyle.displayFont, MyStyle.timeSignatureValue)
-                                    remBinding(CssProperty.fontSize, fontRemDisplayTimeSignature, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplayTimeSignature) }
                                 }
                                 spacer()
                             }
@@ -280,11 +272,11 @@ class MainView : View("Root") {
 
                             label("next") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
                             label("4/4") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
                         }
                     }
@@ -292,22 +284,22 @@ class MainView : View("Root") {
                     pane {
                         addClass(MyStyle.displaySectionSeparator)
                         style(rootFontSize) {
-                            prop(CssProperty.borderWidth,
+                            prop(borderWidth,
                                     fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px")
                         }
                     }
 
                     vbox {
-                        remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+                        style(rootFontSize) { prop(padding, padRemCommon) }
 
                         vbox {
                             label("position") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
                             label("  1") {
                                 addClass(MyStyle.displayFont)
-                                remBinding(CssProperty.fontSize, fontRemDisplayMain, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemDisplayMain) }
                             }
                         }
 
@@ -318,11 +310,11 @@ class MainView : View("Root") {
 
                                 label("play range") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                                 label("120 ‒ 165") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                             }
                             vbox {
@@ -331,11 +323,11 @@ class MainView : View("Root") {
 
                                 label("measures") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                                 label("185") {
                                     addClass(MyStyle.displayFont)
-                                    remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
                             }
                         }
@@ -346,38 +338,38 @@ class MainView : View("Root") {
             }
 
             hbox {
-                remBinding(CssProperty.padding, padRemCommon, rootFontSize)
+                style(rootFontSize) { prop(padding, padRemCommon) }
 
                 spacer()
 
                 vbox {
-                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                    style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                     hbox {
-                        remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                        style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                         vbox {
-                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                            style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                             label("Play") {
-                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemControlTitle) }
                             }
 
                             mytogglebutton("Play") {
                                 useMaxWidth = true
-                                remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                             }
 
                             hbox {
-                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                                style(rootFontSize) { prop(spacing, spacingRemCommon) }
                                 mybutton("<<") {
-                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                 }
                                 mybutton("<") {
-                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                 }
                                 mybutton(">") {
-                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                 }
                             }
                         }
@@ -387,24 +379,24 @@ class MainView : View("Root") {
                         }
 
                         vbox {
-                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                            style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                             label("Channels") {
-                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemControlTitle) }
                             }
 
                             vbox {
-                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                                style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                                 mytogglebutton("Click off") {
                                     useMaxWidth = true
-                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                 }
 
                                 mytogglebutton("Drums on") {
                                     useMaxWidth = true
                                     isSelected = true
-                                    remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                    style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                 }
                             }
                         }
@@ -414,39 +406,39 @@ class MainView : View("Root") {
                         }
 
                         vbox {
-                            remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                            style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                             label("Tempo") {
-                                remBinding(CssProperty.fontSize, fontRemControlTitle, rootFontSize)
+                                style(rootFontSize) { prop(fontSize, fontRemControlTitle) }
                             }
 
                             vbox {
-                                remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                                style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                                 hbox {
-                                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                                    style(rootFontSize) { prop(spacing, spacingRemCommon) }
 
                                     val tg = togglegroup()
                                     mytogglebutton("Song", tg) {
-                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                        style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                     }
                                     mytogglebutton("Fixed", tg) {
-                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                        style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                     }
                                 }
 
                                 hbox {
-                                    remBinding(CssProperty.spacing, spacingRemCommon, rootFontSize)
+                                    style(rootFontSize) { prop(spacing, spacingRemCommon) }
                                     mybutton("‒") {
-                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                        style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                     }
                                     mybutton("O") {
                                         hgrow = Priority.ALWAYS
                                         useMaxWidth = true
-                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                        style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                     }
                                     mybutton("+") {
-                                        remBinding(CssProperty.fontSize, fontRemControlButton, rootFontSize)
+                                        style(rootFontSize) { prop(fontSize, fontRemControlButton) }
                                     }
                                 }
                             }
