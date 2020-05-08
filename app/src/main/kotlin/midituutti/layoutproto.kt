@@ -12,14 +12,17 @@ import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
 import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
+import javafx.scene.text.TextAlignment
 import javafx.stage.Stage
 import midituutti.MyStyle.Companion.fontRemControlButton
 import midituutti.MyStyle.Companion.fontRemControlSliderButton
 import midituutti.MyStyle.Companion.fontRemControlTitle
 import midituutti.MyStyle.Companion.fontRemDisplayMain
 import midituutti.MyStyle.Companion.fontRemDisplaySub
+import midituutti.MyStyle.Companion.fontRemDisplayTimeSignature
 import midituutti.MyStyle.Companion.padRemCommon
 import midituutti.MyStyle.Companion.spacingRemCommon
+import midituutti.MyStyle.Companion.widthTimeSigHead
 import tornadofx.*
 
 fun EventTarget.mytogglebutton(
@@ -62,8 +65,32 @@ fun EventTarget.myslider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {})
 enum class CssProperty(val propName: String) {
     borderWidth("-fx-border-width"),
     fontSize("-fx-font-size"),
+    minWidth("-fx-min-width"),
     padding("-fx-padding"),
     spacing("-fx-spacing"),
+}
+
+class RemStyle(private val list: MutableList<(Double) -> String>) {
+    fun prop(cssProperty: CssProperty, rem: Double) {
+        list.add(fun(rfs: Double): String = "${cssProperty.propName}: ${rem * rfs}px;")
+    }
+
+    fun prop(cssProperty: CssProperty, f: (rem: (Double) -> String) -> String) {
+        list.add(fun(rfs: Double): String = "${cssProperty.propName}: ${f(fun(rems: Double): String = "${rems * rfs}px")};")
+    }
+}
+
+fun Node.style(rootFontSize: DoubleProperty, op: RemStyle.() -> Unit = {}): RemStyle {
+    val cssPropFunctions = mutableListOf<(Double) -> String>()
+    val remStyle = RemStyle(cssPropFunctions)
+    remStyle.run(op)
+
+    val propBindings = cssPropFunctions.map { f ->
+        rootFontSize.stringBinding { f(it as Double) }
+    }.toTypedArray()
+    styleProperty().bind(Bindings.concat(*propBindings))
+
+    return remStyle
 }
 
 fun Node.remBinding(cssProperty: CssProperty, rem: Double, rootFontSize: DoubleProperty): Unit =
@@ -80,6 +107,8 @@ class MyStyle : Stylesheet() {
         val mybutton by cssclass()
         val displayFont by cssclass()
         val displaySectionSeparator by cssclass()
+        val timeSignatureValue by cssclass()
+        val timeSignatureSeparator by cssclass()
         val controlSectionSeparator by cssclass()
         val display by cssclass()
 
@@ -87,7 +116,9 @@ class MyStyle : Stylesheet() {
         private val colorDisplayText = Color.LIGHTGREEN
 
         const val fontRemDisplayMain = 6.0
+        const val fontRemDisplayTimeSignature = 2.8
         const val fontRemDisplaySub = 0.8
+        const val widthTimeSigHead = 5.0 * fontRemDisplaySub
         const val fontRemControlTitle = 0.8
         const val fontRemControlButton = 0.8
         const val fontRemControlSliderButton = 0.5
@@ -109,6 +140,16 @@ class MyStyle : Stylesheet() {
             backgroundColor = multi(c(20, 20, 20))
             minWidth = 4.px
             maxWidth = 4.px
+        }
+
+        timeSignatureValue {
+            textAlignment = TextAlignment.CENTER
+        }
+
+        timeSignatureSeparator {
+            backgroundColor = multi(colorDisplayText)
+            minHeight = 2.px
+            maxHeight = 2.px
         }
 
         controlSectionSeparator {
@@ -195,6 +236,65 @@ class MainView : View("Root") {
                         remBinding(CssProperty.borderWidth,
                                 fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px",
                                 rootFontSize)
+                    }
+
+                    vbox {
+                        style(rootFontSize) {
+                            prop(CssProperty.padding, padRemCommon)
+                            prop(CssProperty.minWidth, widthTimeSigHead)
+                        }
+                        label("timesig") {
+                            addClass(MyStyle.displayFont)
+                            remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                        }
+                        vbox {
+                            addClass(MyStyle.timeSignatureValue)
+                            hbox {
+                                spacer()
+                                label("12") {
+                                    useMaxWidth = true
+                                    addClass(MyStyle.displayFont, MyStyle.timeSignatureValue)
+                                    remBinding(CssProperty.fontSize, fontRemDisplayTimeSignature, rootFontSize)
+                                }
+                                spacer()
+                            }
+                            pane {
+                                addClass(MyStyle.timeSignatureSeparator)
+                            }
+                            hbox {
+                                spacer()
+                                label("4") {
+                                    useMaxWidth = true
+                                    addClass(MyStyle.displayFont, MyStyle.timeSignatureValue)
+                                    remBinding(CssProperty.fontSize, fontRemDisplayTimeSignature, rootFontSize)
+                                }
+                                spacer()
+                            }
+                        }
+
+                        spacer()
+
+                        vbox {
+                            hgrow = Priority.ALWAYS
+                            alignment = Pos.TOP_LEFT
+
+                            label("next") {
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                            }
+                            label("4/4") {
+                                addClass(MyStyle.displayFont)
+                                remBinding(CssProperty.fontSize, fontRemDisplaySub, rootFontSize)
+                            }
+                        }
+                    }
+
+                    pane {
+                        addClass(MyStyle.displaySectionSeparator)
+                        style(rootFontSize) {
+                            prop(CssProperty.borderWidth,
+                                    fun(rem: (Double) -> String): String = "${rem(padRemCommon)} 0px ${rem(padRemCommon)} 0px")
+                        }
                     }
 
                     vbox {
@@ -368,7 +468,7 @@ class LayoutProtoApp : App() {
     override val primaryView = MainView::class
 
     private val preferredHeight = 400.0
-    private val preferredWidth = preferredHeight * 1.2
+    private val preferredWidth = preferredHeight * 1.4
 
     override fun start(stage: Stage) {
         with(stage) {
