@@ -2,11 +2,18 @@ package midituutti
 
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleDoubleProperty
+import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.value.ChangeListener
+import javafx.beans.value.ObservableValue
 import javafx.event.EventTarget
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
+import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
@@ -43,23 +50,109 @@ fun EventTarget.mybutton(text: String = "", graphic: Node? = null, op: Button.()
             op()
         }
 
-fun EventTarget.myslider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}) =
-        hbox {
-            style(rootFontSize) { prop(spacing, spacingRemCommon) }
+interface BidirectionalBridge {
+    fun leftSideObservables(): Collection<ObservableValue<*>>
+    fun rightSideObservables(): Collection<ObservableValue<*>>
+    fun leftSideChanged()
+    fun rightSideChanged()
+}
 
-            mybutton("<") {
-                style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
-            }
-            slider(1, 100) {
-                hgrow = Priority.ALWAYS
-                style(rootFontSize) { prop(fontSize, fontRemControlButton) }
-            }
-            mybutton(">") {
-                style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
+fun bindBidirectional(bridge: BidirectionalBridge) {
+    fun flaggedChangeListener(onChange: () -> Unit) =
+            object : ChangeListener<Any> {
+                private var alreadyCalled = false
+                override fun changed(observable: ObservableValue<out Any>?, oldValue: Any?, newValue: Any?) {
+                    if (!alreadyCalled) {
+                        try {
+                            alreadyCalled = true
+                            onChange()
+                        } finally {
+                            alreadyCalled = false
+                        }
+                    }
+                }
             }
 
-            op()
+    bridge.leftSideObservables().forEach { p -> p.addListener(flaggedChangeListener(bridge::leftSideChanged)) }
+    bridge.rightSideObservables().forEach { p -> p.addListener(flaggedChangeListener(bridge::rightSideChanged)) }
+}
+
+interface MeasureSlider {
+    fun getValueProperty(): IntegerProperty
+}
+
+fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
+    var theSlider: Slider by singleAssign()
+    val value = SimpleIntegerProperty(1)
+
+    hbox {
+        style(rootFontSize) { prop(spacing, spacingRemCommon) }
+
+        mybutton("<") {
+            style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
+            action {
+                value.minusAssign(1)
+            }
         }
+        theSlider = slider(1, 100) {
+            hgrow = Priority.ALWAYS
+            style(rootFontSize) { prop(fontSize, fontRemControlButton) }
+        }
+        mybutton(">") {
+            style(rootFontSize) { prop(fontSize, fontRemControlSliderButton) }
+            action {
+                value.plusAssign(1)
+            }
+        }
+
+        op()
+    }
+
+    theSlider.valueProperty().bindBidirectional(value)
+
+    return object : MeasureSlider {
+        override fun getValueProperty(): IntegerProperty = value
+    }
+}
+
+interface MeasureRangeControl {
+    fun getValueProperty(): ObjectProperty<Pair<Int, Int>>
+}
+
+fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
+    var startSlider: MeasureSlider by singleAssign()
+    var endSlider: MeasureSlider by singleAssign()
+
+    vbox {
+        startSlider = measureSlider(rootFontSize)
+        endSlider = measureSlider(rootFontSize)
+        op()
+    }
+
+    val range = SimpleObjectProperty<Pair<Int, Int>>(null)
+
+    bindBidirectional(object : BidirectionalBridge {
+        override fun leftSideObservables(): Collection<ObservableValue<*>> = listOf(
+                startSlider.getValueProperty(),
+                endSlider.getValueProperty())
+
+        override fun rightSideObservables(): Collection<ObservableValue<*>> = listOf(range)
+
+        override fun leftSideChanged() {
+            range.value = Pair(startSlider.getValueProperty().value, endSlider.getValueProperty().value)
+        }
+
+        override fun rightSideChanged() {
+            val newRange = range.value
+            startSlider.getValueProperty().value = newRange.first
+            endSlider.getValueProperty().value = newRange.second
+        }
+    })
+
+    return object : MeasureRangeControl {
+        override fun getValueProperty(): ObjectProperty<Pair<Int, Int>> = range
+    }
+}
 
 class RemStyle(private val list: MutableList<(Double) -> String>) {
     data class CssProperty(val propName: String)
@@ -160,10 +253,14 @@ class MyStyle : Stylesheet() {
 class MainView : View("Root") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
+    private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
+
     override val root = borderpane() {
         top = menubar {
             menu("File") {
-                item("Open", "Shortcut+O").action { }
+                item("Open", "Shortcut+O").action {
+                    measureRange.value = Pair(21, 42)
+                }
                 separator()
                 item("Quit")
             }
@@ -312,9 +409,12 @@ class MainView : View("Root") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
-                                label("120 ‒ 165") {
+                                label {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
+                                    textProperty().bind(measureRange.stringBinding { v ->
+                                        (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
+                                    })
                                 }
                             }
                             vbox {
@@ -444,8 +544,10 @@ class MainView : View("Root") {
                             }
                         }
                     }
-                    myslider(rootFontSize) { }
-                    myslider(rootFontSize) { }
+
+                    measureRangeControl(rootFontSize).run {
+                        measureRange.bindBidirectional(getValueProperty())
+                    }
                 }
 
                 spacer()
