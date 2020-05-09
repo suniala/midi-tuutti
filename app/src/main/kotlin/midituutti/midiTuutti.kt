@@ -9,10 +9,13 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.Pos
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
+import javafx.scene.input.MouseEvent
 import javafx.scene.layout.Priority
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.components.measureRangeControl
+import midituutti.components.nonFocusableButton
+import midituutti.components.nonFocusableToggleButton
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
 import midituutti.engine.EngineTrack
@@ -341,6 +344,150 @@ class PlayerView : View("Player") {
             vbox {
                 style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
 
+                hbox {
+                    style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                    vbox {
+                        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                        label("Play") {
+                            style(rootFontSize) { prop(fontSize, Style.fontRemControlTitle) }
+                        }
+
+                        playButton = nonFocusableToggleButton("Play") {
+                            useMaxWidth = true
+                            style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                            shortcut("Space") { fire() }
+                            action {
+                                engineController.togglePlay()
+                            }
+                        }
+
+                        hbox {
+                            style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+                            nonFocusableButton("<<") {
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("Home")
+                                action {
+                                    engineController.jump { 0 }
+                                }
+                            }
+                            nonFocusableButton("<") {
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("A")
+                                action {
+                                    engineController.jump { m -> m - 1 }
+                                }
+                            }
+                            nonFocusableButton(">") {
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("D")
+                                action {
+                                    engineController.jump { m -> m + 1 }
+                                }
+                            }
+                        }
+                    }
+
+                    pane {
+                        addClass(Style.controlSectionSeparator)
+                    }
+
+                    vbox {
+                        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                        label("Channels") {
+                            style(rootFontSize) { prop(fontSize, Style.fontRemControlTitle) }
+                        }
+
+                        vbox {
+                            style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                            clickButton = nonFocusableToggleButton("Click off") {
+                                useMaxWidth = true
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("C") { fire() }
+                                val stateText = selectedProperty().stringBinding {
+                                    if (it == true) "Click On" else "Click Off"
+                                }
+                                textProperty().bind(stateText)
+                                action {
+                                    engineController.toggleClick()
+                                }
+                            }
+
+                            drumMuteButton = nonFocusableToggleButton("Drums on") {
+                                useMaxWidth = true
+                                isSelected = true
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("M") { fire() }
+                                val stateText = selectedProperty().stringBinding {
+                                    if (it == false) "Drums Off" else "Drums On"
+                                }
+                                textProperty().bind(stateText)
+                                action {
+                                    engineController.toggleTrack(drumTrack)
+                                }
+                            }
+                        }
+                    }
+                    pane {
+                        addClass(Style.controlSectionSeparator)
+                    }
+
+                    vbox {
+                        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                        label("Tempo") {
+                            style(rootFontSize) { prop(fontSize, Style.fontRemControlTitle) }
+                        }
+
+                        vbox {
+                            style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                            hbox {
+                                style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                                nonFocusableToggleButton("Song", tempoModeGroup, selectFirst = true,
+                                        value = TempoMode.MULTIPLIER) {
+                                    style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                    addEventFilter(MouseEvent.ANY, preventDeselect())
+                                }
+                                nonFocusableToggleButton("Fixed", tempoModeGroup, value = TempoMode.CONSTANT) {
+                                    style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                    addEventFilter(MouseEvent.ANY, preventDeselect())
+                                }
+                            }
+
+                            hbox {
+                                style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+                                nonFocusableButton("‒") {
+                                    style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                    shortcut("S")
+                                    action {
+                                        adjustCurrentTempoMode(TempoAdjustment.DECREASE)
+                                    }
+                                }
+                                nonFocusableButton("O") {
+                                    hgrow = Priority.ALWAYS
+                                    useMaxWidth = true
+                                    style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                    action {
+                                        adjustCurrentTempoMode(TempoAdjustment.RESET)
+                                    }
+                                }
+                                nonFocusableButton("+") {
+                                    style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                    shortcut("W")
+                                    action {
+                                        adjustCurrentTempoMode(TempoAdjustment.INCREASE)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 measureRangeControl(rootFontSize).run {
                     measureRange.bindBidirectional(valueProperty())
                     measureRangeChanging.bind(valueChangingProperty())
@@ -349,88 +496,6 @@ class PlayerView : View("Player") {
             }
 
             spacer()
-        }
-
-        playButton = togglebutton("Play") {
-            shortcut("Space") { fire() }
-            isSelected = false
-            isFocusTraversable = false
-            action {
-                engineController.togglePlay()
-            }
-        }
-
-        clickButton = togglebutton {
-            shortcut("C") { fire() }
-            val stateText = selectedProperty().stringBinding {
-                if (it == true) "Click On" else "Click Off"
-            }
-            textProperty().bind(stateText)
-            isSelected = false
-            isFocusTraversable = false
-            action {
-                engineController.toggleClick()
-            }
-        }
-        drumMuteButton = togglebutton {
-            shortcut("M") { fire() }
-            val stateText = selectedProperty().stringBinding {
-                if (it == true) "Drums Off" else "Drums On"
-            }
-            textProperty().bind(stateText)
-            isSelected = false
-            isFocusTraversable = false
-            action {
-                engineController.toggleTrack(drumTrack)
-            }
-        }
-        button("<<") {
-            shortcut("Home")
-            isFocusTraversable = false
-            action {
-                engineController.jump { 0 }
-            }
-        }
-        button("<") {
-            shortcut("A")
-            isFocusTraversable = false
-            action {
-                engineController.jump { m -> m - 1 }
-            }
-        }
-        button(">") {
-            shortcut("D")
-            isFocusTraversable = false
-            action {
-                engineController.jump { m -> m + 1 }
-            }
-        }
-
-        vbox {
-            radiobutton("Multiply", tempoModeGroup, value = TempoMode.MULTIPLIER)
-            radiobutton("Constant", tempoModeGroup, value = TempoMode.CONSTANT)
-        }
-        hbox {
-            button("+") {
-                shortcut("W")
-                isFocusTraversable = false
-                action {
-                    adjustCurrentTempoMode(TempoAdjustment.INCREASE)
-                }
-            }
-            button("o") {
-                isFocusTraversable = false
-                action {
-                    adjustCurrentTempoMode(TempoAdjustment.RESET)
-                }
-            }
-            button("-") {
-                shortcut("S")
-                isFocusTraversable = false
-                action {
-                    adjustCurrentTempoMode(TempoAdjustment.DECREASE)
-                }
-            }
         }
 
         shortcut("T") {
@@ -447,7 +512,7 @@ class PlayerView : View("Player") {
                     is MutePlaybackEvent -> when (playbackEvent.track) {
                         is ClickTrack -> clickButton.selectedProperty().value = !playbackEvent.muted
                         is MidiTrack -> when ((playbackEvent.track as MidiTrack).channel) {
-                            10 -> drumMuteButton.selectedProperty().value = playbackEvent.muted
+                            10 -> drumMuteButton.selectedProperty().value = !playbackEvent.muted
                         }
                     }
                     is MeasurePlaybackEvent -> {

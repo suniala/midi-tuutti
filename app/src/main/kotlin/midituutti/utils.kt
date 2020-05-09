@@ -12,6 +12,8 @@ import javafx.beans.value.ObservableValue
 import javafx.css.PseudoClass
 import javafx.event.EventHandler
 import javafx.scene.Node
+import javafx.scene.control.ToggleButton
+import javafx.scene.input.MouseEvent
 import tornadofx.*
 
 interface BidirectionalBridge {
@@ -93,3 +95,5 @@ fun Node.style(rootFontSize: DoubleProperty, op: RemStyle.() -> Unit = {}): RemS
 
     return remStyle
 }
+
+fun ToggleButton.preventDeselect(): EventHandler<MouseEvent> = EventHandler { e -> if (isSelected) e.consume() }
