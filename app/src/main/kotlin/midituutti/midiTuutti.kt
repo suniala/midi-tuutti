@@ -26,6 +26,7 @@ import midituutti.midi.Tempo
 import midituutti.midi.TimeSignature
 import tornadofx.*
 import java.io.File
+import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
 val drumTrack = MidiTrack(10)
@@ -154,9 +155,12 @@ class PlayerView : View("Player") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
-                        label("  1") {
+                        label() {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
+                            textProperty().bind(currentMeasure.stringBinding { v ->
+                                (v ?: 1).let { m -> "$m".padStart(3, ' ') }
+                            })
                         }
                     }
 
@@ -187,9 +191,12 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
-                            label("185") {
+                            label() {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                                textProperty().bind(measureCount.stringBinding { v ->
+                                    (v ?: 1).let { c -> "$c".padStart(3, ' ') }
+                                })
                             }
                         }
                     }
@@ -216,10 +223,13 @@ class PlayerView : View("Player") {
                         addClass(Style.timeSignatureValue)
                         hbox {
                             spacer()
-                            label("12") {
+                            label() {
                                 useMaxWidth = true
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
+                                textProperty().bind(currentTimeSignature.stringBinding { ts ->
+                                    ts?.numerator?.toString() ?: ""
+                                })
                             }
                             spacer()
                         }
@@ -232,6 +242,9 @@ class PlayerView : View("Player") {
                                 useMaxWidth = true
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
+                                textProperty().bind(currentTimeSignature.stringBinding { ts ->
+                                    ts?.denominator?.toString() ?: ""
+                                })
                             }
                             spacer()
                         }
@@ -247,9 +260,10 @@ class PlayerView : View("Player") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
-                        label("4/4") {
+                        label("?/?") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            // TODO: next measure time signature
                         }
                     }
                 }
@@ -270,9 +284,12 @@ class PlayerView : View("Player") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
-                        label(" 93") {
+                        label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
+                            textProperty().bind(adjustedTempo.stringBinding { t ->
+                                t?.bpm?.roundToInt()?.toString()?.padStart(3, ' ') ?: "---"
+                            })
                         }
                     }
 
@@ -285,9 +302,12 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
-                            label("105 %") {
+                            label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                                textProperty().bind(tempoMultiplier.stringBinding { v ->
+                                    (v as Double).let { m -> "${(m * 100).roundToInt()} %" }
+                                })
                             }
                         }
                         vbox {
@@ -301,6 +321,9 @@ class PlayerView : View("Player") {
                             label("120 bpm") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                                textProperty().bind(songTempo.stringBinding { t ->
+                                    t?.bpm?.roundToInt()?.toString()?.padStart(3, ' ') ?: "---"
+                                })
                             }
                         }
                     }
@@ -392,26 +415,6 @@ class PlayerView : View("Player") {
             }
         }
 
-        hbox {
-            label("Playback tempo: ")
-            label(adjustedTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        hbox {
-            label("Song tempo: ")
-            label(songTempo.stringBinding { t -> t?.bpm?.let { String.format("%.2f", it) } ?: "---" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        vbox {
-            label(tempoMultiplier.stringBinding { m -> String.format("Tempo multiplier: %.2f", m) }) {
-                minWidth = 200.0
-                maxWidth = 200.0
-            }
-        }
         vbox {
             radiobutton("Multiply", tempoModeGroup, value = TempoMode.MULTIPLIER)
             radiobutton("Constant", tempoModeGroup, value = TempoMode.CONSTANT)
@@ -436,29 +439,6 @@ class PlayerView : View("Player") {
                 action {
                     adjustCurrentTempoMode(TempoAdjustment.DECREASE)
                 }
-            }
-        }
-        hbox {
-            label("Current measure: ")
-            label(currentMeasure.stringBinding { c -> c?.toString() ?: "" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        hbox {
-            label("Measure count: ")
-            label(measureCount.stringBinding { c -> c?.toString() ?: "" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-        hbox {
-            label("Current time signature: ")
-            label(currentTimeSignature.stringBinding { c ->
-                c?.let { ts -> "${ts.numerator}/${ts.denominator}" } ?: ""
-            }) {
-                minWidth = 50.0
-                maxWidth = 50.0
             }
         }
 
