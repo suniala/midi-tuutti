@@ -318,11 +318,11 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
-                            label("120 bpm") {
+                            label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(songTempo.stringBinding { t ->
-                                    t?.bpm?.roundToInt()?.toString()?.padStart(3, ' ') ?: "---"
+                                    t?.bpm?.roundToInt()?.toString()?.plus(" bpm") ?: "---"
                                 })
                             }
                         }
