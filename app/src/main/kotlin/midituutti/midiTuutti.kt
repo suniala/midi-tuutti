@@ -12,8 +12,6 @@ import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
 import javafx.stage.FileChooser
 import javafx.stage.Stage
-import midituutti.Style.Companion.padRemCommon
-import midituutti.Style.Companion.spacingRemCommon
 import midituutti.components.measureRangeControl
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
@@ -336,12 +334,12 @@ class PlayerView : View("Player") {
         }
 
         hbox {
-            style(rootFontSize) { prop(padding, padRemCommon) }
+            style(rootFontSize) { prop(padding, Style.padRemCommon) }
 
             spacer()
 
             vbox {
-                style(rootFontSize) { prop(spacing, spacingRemCommon) }
+                style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
 
                 measureRangeControl(rootFontSize).run {
                     measureRange.bindBidirectional(valueProperty())
