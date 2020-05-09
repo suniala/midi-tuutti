@@ -336,11 +336,11 @@ class MainView : View("Root") {
                         style(rootFontSize) { prop(padding, padRemCommon) }
 
                         vbox {
-                            label("bpm") {
+                            label("position") {
                                 addClass(MyStyle.displayFont)
                                 style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
-                            label(" 93") {
+                            label("  1") {
                                 addClass(MyStyle.displayFont)
                                 style(rootFontSize) { prop(fontSize, fontRemDisplayMain) }
                             }
@@ -351,24 +351,29 @@ class MainView : View("Root") {
                                 hgrow = Priority.ALWAYS
                                 alignment = Pos.TOP_LEFT
 
-                                label("adjust") {
+                                label("play range") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
-                                label("105 %") {
+                                label {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
+                                    textProperty().bind(measureRange.stringBinding { v ->
+                                        (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
+                                    })
+                                    measureRangeBlink = nodeBlinker(this, blink)
+                                    measureRangeBlink.bind(measureRangeChanging)
                                 }
                             }
                             vbox {
                                 hgrow = Priority.ALWAYS
                                 alignment = Pos.TOP_RIGHT
 
-                                label("song tempo") {
+                                label("measures") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
-                                label("120 bpm") {
+                                label("185") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
@@ -447,11 +452,11 @@ class MainView : View("Root") {
                         style(rootFontSize) { prop(padding, padRemCommon) }
 
                         vbox {
-                            label("position") {
+                            label("bpm") {
                                 addClass(MyStyle.displayFont)
                                 style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                             }
-                            label("  1") {
+                            label(" 93") {
                                 addClass(MyStyle.displayFont)
                                 style(rootFontSize) { prop(fontSize, fontRemDisplayMain) }
                             }
@@ -462,29 +467,24 @@ class MainView : View("Root") {
                                 hgrow = Priority.ALWAYS
                                 alignment = Pos.TOP_LEFT
 
-                                label("play range") {
+                                label("adjust") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
-                                label {
+                                label("105 %") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
-                                    textProperty().bind(measureRange.stringBinding { v ->
-                                        (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
-                                    })
-                                    measureRangeBlink = nodeBlinker(this, blink)
-                                    measureRangeBlink.bind(measureRangeChanging)
                                 }
                             }
                             vbox {
                                 hgrow = Priority.ALWAYS
                                 alignment = Pos.TOP_RIGHT
 
-                                label("measures") {
+                                label("song tempo") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
-                                label("185") {
+                                label("120 bpm") {
                                     addClass(MyStyle.displayFont)
                                     style(rootFontSize) { prop(fontSize, fontRemDisplaySub) }
                                 }
