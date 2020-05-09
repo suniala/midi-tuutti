@@ -1,14 +1,21 @@
 package midituutti
 
+import javafx.animation.Animation
+import javafx.animation.KeyFrame
+import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableValue
+import javafx.css.PseudoClass
+import javafx.event.EventHandler
 import javafx.event.EventTarget
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -21,6 +28,7 @@ import javafx.scene.paint.Color
 import javafx.scene.text.FontWeight
 import javafx.scene.text.TextAlignment
 import javafx.stage.Stage
+import midituutti.MyStyle.Companion.blink
 import midituutti.MyStyle.Companion.fontRemControlButton
 import midituutti.MyStyle.Companion.fontRemControlSliderButton
 import midituutti.MyStyle.Companion.fontRemControlTitle
@@ -78,7 +86,8 @@ fun bindBidirectional(bridge: BidirectionalBridge) {
 }
 
 interface MeasureSlider {
-    fun getValueProperty(): IntegerProperty
+    fun valueProperty(): IntegerProperty
+    fun valueChangingProperty(): BooleanProperty
 }
 
 fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
@@ -111,12 +120,14 @@ fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit 
     theSlider.valueProperty().bindBidirectional(value)
 
     return object : MeasureSlider {
-        override fun getValueProperty(): IntegerProperty = value
+        override fun valueProperty(): IntegerProperty = value
+        override fun valueChangingProperty(): BooleanProperty = theSlider.valueChangingProperty()
     }
 }
 
 interface MeasureRangeControl {
-    fun getValueProperty(): ObjectProperty<Pair<Int, Int>>
+    fun valueProperty(): ObjectProperty<Pair<Int, Int>>
+    fun valueChangingProperty(): BooleanProperty
 }
 
 fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
@@ -133,24 +144,39 @@ fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() ->
 
     bindBidirectional(object : BidirectionalBridge {
         override fun leftSideObservables(): Collection<ObservableValue<*>> = listOf(
-                startSlider.getValueProperty(),
-                endSlider.getValueProperty())
+                startSlider.valueProperty(),
+                endSlider.valueProperty())
 
         override fun rightSideObservables(): Collection<ObservableValue<*>> = listOf(range)
 
         override fun leftSideChanged() {
-            range.value = Pair(startSlider.getValueProperty().value, endSlider.getValueProperty().value)
+            range.value = Pair(startSlider.valueProperty().value, endSlider.valueProperty().value)
         }
 
         override fun rightSideChanged() {
             val newRange = range.value
-            startSlider.getValueProperty().value = newRange.first
-            endSlider.getValueProperty().value = newRange.second
+            startSlider.valueProperty().value = newRange.first
+            endSlider.valueProperty().value = newRange.second
         }
     })
 
+    startSlider.valueProperty().onChange { value ->
+        run {
+            if (endSlider.valueProperty().value - value < 0) endSlider.valueProperty().value = value
+        }
+    }
+    endSlider.valueProperty().onChange { value ->
+        run {
+            if (value - startSlider.valueProperty().value < 0) startSlider.valueProperty().value = value
+        }
+    }
+
+    val valueChanging = SimpleBooleanProperty(false)
+    valueChanging.bind(startSlider.valueChangingProperty().or(endSlider.valueChangingProperty()))
+
     return object : MeasureRangeControl {
-        override fun getValueProperty(): ObjectProperty<Pair<Int, Int>> = range
+        override fun valueProperty(): ObjectProperty<Pair<Int, Int>> = range
+        override fun valueChangingProperty(): BooleanProperty = valueChanging
     }
 }
 
@@ -195,6 +221,7 @@ class MyStyle : Stylesheet() {
         val timeSignatureSeparator by cssclass()
         val controlSectionSeparator by cssclass()
         val display by cssclass()
+        val blink by csspseudoclass()
 
         private val colorDisplayBg = Color.BLACK
         private val colorDisplayText = Color.LIGHTGREEN
@@ -246,14 +273,44 @@ class MyStyle : Stylesheet() {
             fontFamily = "DejaVu Sans Mono"
             fontWeight = FontWeight.BOLD
             textFill = colorDisplayText
+
+            and(blink) {
+                textFill = colorDisplayBg
+            }
         }
     }
+}
+
+fun nodeBlinker(node: Node, blinkPseudoClass: CssRule): BooleanProperty {
+    val javaFxPseudoClass = PseudoClass.getPseudoClass(blinkPseudoClass.name)
+    val timeline = Timeline(
+            KeyFrame(0.5.seconds, EventHandler { node.pseudoClassStateChanged(javaFxPseudoClass, true) }),
+            KeyFrame(1.0.seconds, EventHandler { node.pseudoClassStateChanged(javaFxPseudoClass, false) })
+    )
+    timeline.cycleCount = Animation.INDEFINITE
+
+    val blink = SimpleBooleanProperty(false)
+    blink.onChange { blinkOn ->
+        run {
+            if (blinkOn) {
+                timeline.play()
+            } else {
+                timeline.stop()
+                node.pseudoClassStateChanged(javaFxPseudoClass, false)
+            }
+        }
+    }
+    return blink
 }
 
 class MainView : View("Root") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
     private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
+
+    private val measureRangeChanging = SimpleBooleanProperty(false)
+
+    private var measureRangeBlink: BooleanProperty by singleAssign()
 
     override val root = borderpane() {
         top = menubar {
@@ -415,6 +472,8 @@ class MainView : View("Root") {
                                     textProperty().bind(measureRange.stringBinding { v ->
                                         (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
                                     })
+                                    measureRangeBlink = nodeBlinker(this, blink)
+                                    measureRangeBlink.bind(measureRangeChanging)
                                 }
                             }
                             vbox {
@@ -546,7 +605,8 @@ class MainView : View("Root") {
                     }
 
                     measureRangeControl(rootFontSize).run {
-                        measureRange.bindBidirectional(getValueProperty())
+                        measureRange.bindBidirectional(valueProperty())
+                        measureRangeChanging.bind(valueChangingProperty())
                     }
                 }
 
