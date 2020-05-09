@@ -1,10 +1,13 @@
 package midituutti
 
+import javafx.beans.property.DoubleProperty
+import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.stage.FileChooser
+import javafx.stage.Stage
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
 import midituutti.engine.EngineTrack
@@ -83,6 +86,7 @@ class EngineController : Controller() {
 
 @ExperimentalTime
 class PlayerView : View("Player") {
+    val rootFontSize: DoubleProperty by param()
     val engineController: EngineController by param()
     private var playButton: ToggleButton by singleAssign()
     private var startSlider: Slider by singleAssign()
@@ -357,9 +361,13 @@ class PlayerView : View("Player") {
 
 @ExperimentalTime
 class RootView : View("Root") {
+    val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
+
     private val engineController = EngineController()
 
-    private val playerView = find<PlayerView>(mapOf(PlayerView::engineController to engineController))
+    private val playerView = find<PlayerView>(mapOf(
+            PlayerView::rootFontSize to rootFontSize,
+            PlayerView::engineController to engineController))
 
     override val root = borderpane() {
         top = menubar {
@@ -384,11 +392,34 @@ class RootView : View("Root") {
         }
 
         bottom = playerView.root
+
+        shortcut("F11") { primaryStage.isFullScreen = true }
     }
 }
 
 @ExperimentalTime
-class MidiTuuttiApp : App(RootView::class)
+class MidiTuuttiApp : App() {
+    override val primaryView = RootView::class
+
+    private val preferredHeight = 400.0
+    private val preferredWidth = preferredHeight * 1.4
+
+    override fun start(stage: Stage) {
+        with(stage) {
+            super.start(this)
+            importStylesheet(Style::class)
+
+            val view = find(RootView::class)
+            view.rootFontSize.bind(scene.heightProperty().divide(22))
+
+            // Set dimensions after view has been initialized so as to make view contents scale according to
+            // window dimensions.
+            height = preferredHeight
+            width = preferredWidth
+            isResizable = false
+        }
+    }
+}
 
 @ExperimentalTime
 fun main(args: Array<String>) {
