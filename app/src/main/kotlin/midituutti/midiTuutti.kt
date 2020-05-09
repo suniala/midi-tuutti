@@ -1,11 +1,15 @@
 package midituutti
 
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.geometry.Pos
 import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
+import javafx.scene.layout.Priority
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.ClickTrack
@@ -88,6 +92,11 @@ class EngineController : Controller() {
 class PlayerView : View("Player") {
     val rootFontSize: DoubleProperty by param()
     val engineController: EngineController by param()
+
+    private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
+    private val measureRangeChanging = SimpleBooleanProperty(false)
+    private var measureRangeBlink: BooleanProperty by singleAssign()
+
     private var playButton: ToggleButton by singleAssign()
     private var startSlider: Slider by singleAssign()
     private var endSlider: Slider by singleAssign()
@@ -128,6 +137,178 @@ class PlayerView : View("Player") {
     override val root = vbox {
         // Disable until a file is opened.
         isDisable = true
+
+        style(rootFontSize) { prop(padding, Style.padRemCommon) }
+
+        vbox {
+            addClass(Style.display)
+
+            hbox {
+                spacer()
+
+                vbox {
+                    style(rootFontSize) { prop(padding, Style.padRemCommon) }
+
+                    vbox {
+                        label("position") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                        }
+                        label("  1") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
+                        }
+                    }
+
+                    hbox {
+                        vbox {
+                            hgrow = Priority.ALWAYS
+                            alignment = Pos.TOP_LEFT
+
+                            label("play range") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                            label {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                                textProperty().bind(measureRange.stringBinding { v ->
+                                    (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
+                                })
+                                measureRangeBlink = nodeBlinker(this, Style.blink)
+                                measureRangeBlink.bind(measureRangeChanging)
+                            }
+                        }
+                        vbox {
+                            hgrow = Priority.ALWAYS
+                            alignment = Pos.TOP_RIGHT
+
+                            label("measures") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                            label("185") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                        }
+                    }
+                }
+
+                pane {
+                    addClass(Style.displaySectionSeparator)
+                    style(rootFontSize) {
+                        prop(borderWidth,
+                                fun(rem: (Double) -> String): String = "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
+                    }
+                }
+
+                vbox {
+                    style(rootFontSize) {
+                        prop(padding, Style.padRemCommon)
+                        prop(minWidth, Style.widthTimeSigHead)
+                    }
+                    label("timesig") {
+                        addClass(Style.displayFont)
+                        style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                    }
+                    vbox {
+                        addClass(Style.timeSignatureValue)
+                        hbox {
+                            spacer()
+                            label("12") {
+                                useMaxWidth = true
+                                addClass(Style.displayFont, Style.timeSignatureValue)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
+                            }
+                            spacer()
+                        }
+                        pane {
+                            addClass(Style.timeSignatureSeparator)
+                        }
+                        hbox {
+                            spacer()
+                            label("4") {
+                                useMaxWidth = true
+                                addClass(Style.displayFont, Style.timeSignatureValue)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
+                            }
+                            spacer()
+                        }
+                    }
+
+                    spacer()
+
+                    vbox {
+                        hgrow = Priority.ALWAYS
+                        alignment = Pos.TOP_LEFT
+
+                        label("next") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                        }
+                        label("4/4") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                        }
+                    }
+                }
+
+                pane {
+                    addClass(Style.displaySectionSeparator)
+                    style(rootFontSize) {
+                        prop(borderWidth,
+                                fun(rem: (Double) -> String): String = "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
+                    }
+                }
+
+                vbox {
+                    style(rootFontSize) { prop(padding, Style.padRemCommon) }
+
+                    vbox {
+                        label("bpm") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                        }
+                        label(" 93") {
+                            addClass(Style.displayFont)
+                            style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
+                        }
+                    }
+
+                    hbox {
+                        vbox {
+                            hgrow = Priority.ALWAYS
+                            alignment = Pos.TOP_LEFT
+
+                            label("adjust") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                            label("105 %") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                        }
+                        vbox {
+                            hgrow = Priority.ALWAYS
+                            alignment = Pos.TOP_RIGHT
+
+                            label("song tempo") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                            label("120 bpm") {
+                                addClass(Style.displayFont)
+                                style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
+                            }
+                        }
+                    }
+                }
+
+                spacer()
+            }
+        }
 
         playButton = togglebutton("Play") {
             shortcut("Space") { fire() }
