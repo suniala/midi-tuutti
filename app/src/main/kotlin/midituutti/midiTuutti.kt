@@ -544,7 +544,7 @@ class PlayerView : View("Player") {
 class RootView : View("Root") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
-    private val engineController = EngineController()
+    private val engineController = tornadofx.find(EngineController::class)
 
     private val playerView = find<PlayerView>(mapOf(
             PlayerView::rootFontSize to rootFontSize,
@@ -593,6 +593,14 @@ class MidiTuuttiApp : App() {
             val view = find(RootView::class)
             view.rootFontSize.bind(scene.heightProperty().divide(22))
 
+            parameters.raw.firstOrNull()?.let { path ->
+                val file = File(path)
+                if (file.exists() && file.isFile && file.canRead()) {
+                    val engineController = find(EngineController::class)
+                    engineController.openFile(file)
+                }
+            }
+
             // Set dimensions after view has been initialized so as to make view contents scale according to
             // window dimensions.
             height = preferredHeight
@@ -604,6 +612,5 @@ class MidiTuuttiApp : App() {
 
 @ExperimentalTime
 fun main(args: Array<String>) {
-    // TODO kotlin: how to get command line args to the view?
     launch<MidiTuuttiApp>(args)
 }
