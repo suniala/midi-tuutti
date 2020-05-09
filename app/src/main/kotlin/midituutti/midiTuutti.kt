@@ -2,16 +2,19 @@ package midituutti
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.Pos
-import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
 import javafx.stage.FileChooser
 import javafx.stage.Stage
+import midituutti.Style.Companion.padRemCommon
+import midituutti.Style.Companion.spacingRemCommon
+import midituutti.components.measureRangeControl
 import midituutti.engine.ClickTrack
 import midituutti.engine.Engine
 import midituutti.engine.EngineTrack
@@ -82,8 +85,8 @@ class EngineController : Controller() {
 
     fun jump(f: (Int) -> Int) = engine().jumpToBar(f)
 
-    fun resetMeasureRange(start: Int, end: Int) {
-        engine().resetMeasureRange(start, end)
+    fun resetMeasureRange(range: Pair<Int, Int>) {
+        engine().resetMeasureRange(range.first, range.second)
     }
 
     fun setTempoModifier(f: (Tempo) -> Tempo) = engine().setTempoModifier(f)
@@ -96,11 +99,10 @@ class PlayerView : View("Player") {
 
     private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
     private val measureRangeChanging = SimpleBooleanProperty(false)
+    private var measureRangeBounds: ObjectProperty<Pair<Int, Int>> by singleAssign()
     private var measureRangeBlink: BooleanProperty by singleAssign()
 
     private var playButton: ToggleButton by singleAssign()
-    private var startSlider: Slider by singleAssign()
-    private var endSlider: Slider by singleAssign()
     private var clickButton: ToggleButton by singleAssign()
     private var drumMuteButton: ToggleButton by singleAssign()
     private val songTempo = SimpleObjectProperty<Tempo?>()
@@ -155,7 +157,7 @@ class PlayerView : View("Player") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
-                        label() {
+                        label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
                             textProperty().bind(currentMeasure.stringBinding { v ->
@@ -191,7 +193,7 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
-                            label() {
+                            label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(measureCount.stringBinding { v ->
@@ -223,7 +225,7 @@ class PlayerView : View("Player") {
                         addClass(Style.timeSignatureValue)
                         hbox {
                             spacer()
-                            label() {
+                            label {
                                 useMaxWidth = true
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
@@ -333,39 +335,30 @@ class PlayerView : View("Player") {
             }
         }
 
+        hbox {
+            style(rootFontSize) { prop(padding, padRemCommon) }
+
+            spacer()
+
+            vbox {
+                style(rootFontSize) { prop(spacing, spacingRemCommon) }
+
+                measureRangeControl(rootFontSize).run {
+                    measureRange.bindBidirectional(valueProperty())
+                    measureRangeChanging.bind(valueChangingProperty())
+                    measureRangeBounds = boundsProperty()
+                }
+            }
+
+            spacer()
+        }
+
         playButton = togglebutton("Play") {
             shortcut("Space") { fire() }
             isSelected = false
             isFocusTraversable = false
             action {
                 engineController.togglePlay()
-            }
-        }
-
-        startSlider = slider(1, 100) {
-            value = 1.0
-            majorTickUnit = 1.0
-            blockIncrement = 10.0
-        }
-        endSlider = slider(1, 100) {
-            value = 100.0
-            majorTickUnit = 1.0
-            blockIncrement = 10.0
-        }
-
-        hbox {
-            label("Start measure: ")
-            label(startSlider.valueProperty().stringBinding { t -> t?.toInt()?.toString() ?: "---" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
-            }
-        }
-
-        hbox {
-            label("End measure: ")
-            label(endSlider.valueProperty().stringBinding { t -> t?.toInt()?.toString() ?: "---" }) {
-                minWidth = 50.0
-                maxWidth = 50.0
             }
         }
 
@@ -476,10 +469,8 @@ class PlayerView : View("Player") {
                 tempoMode.value = TempoMode.MULTIPLIER
                 measureCount.value = event.measures
 
-                startSlider.value = 1.toDouble()
-                startSlider.max = event.measures.toDouble()
-                endSlider.max = startSlider.max
-                endSlider.value = endSlider.max
+                measureRangeBounds.value = Pair(1, event.measures)
+                measureRange.value = measureRangeBounds.value
 
                 isDisable = false
             }
@@ -495,26 +486,9 @@ class PlayerView : View("Player") {
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
 
-        startSlider.valueProperty().onChange { value ->
-            run {
-                val int = value.toInt()
-                if (endSlider.value - int < 0) endSlider.value = int.toDouble()
-            }
-        }
-        endSlider.valueProperty().onChange { value ->
-            run {
-                val int = value.toInt()
-                if (int - startSlider.value < 0) startSlider.value = int.toDouble()
-            }
-        }
-        startSlider.valueChangingProperty().onChange { changing ->
+        measureRangeChanging.onChange { changing ->
             if (!changing) {
-                engineController.resetMeasureRange(startSlider.value.toInt(), endSlider.value.toInt())
-            }
-        }
-        endSlider.valueChangingProperty().onChange { changing ->
-            if (!changing) {
-                engineController.resetMeasureRange(startSlider.value.toInt(), endSlider.value.toInt())
+                engineController.resetMeasureRange(measureRange.value)
             }
         }
     }

@@ -17,10 +17,12 @@ import midituutti.Style
 import midituutti.bindBidirectional
 import midituutti.style
 import tornadofx.*
+import kotlin.math.roundToInt
 
 interface MeasureSlider {
     fun valueProperty(): IntegerProperty
     fun valueChangingProperty(): BooleanProperty
+    fun setBounds(bounds: Pair<Int, Int>?)
 }
 
 fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
@@ -50,9 +52,16 @@ fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit 
         op()
     }
 
+    // Rounding to int seems result in a slider that snaps nicely onto int values
+    theSlider.valueProperty().mutateOnChange { d -> (d as Double).roundToInt() }
     theSlider.valueProperty().bindBidirectional(value)
 
     return object : MeasureSlider {
+        override fun setBounds(bounds: Pair<Int, Int>?) {
+            theSlider.min = (bounds?.first ?: 1).toDouble()
+            theSlider.max = (bounds?.second ?: 100).toDouble()
+        }
+
         override fun valueProperty(): IntegerProperty = value
         override fun valueChangingProperty(): BooleanProperty = theSlider.valueChangingProperty()
     }
@@ -61,6 +70,7 @@ fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit 
 interface MeasureRangeControl {
     fun valueProperty(): ObjectProperty<Pair<Int, Int>>
     fun valueChangingProperty(): BooleanProperty
+    fun boundsProperty(): ObjectProperty<Pair<Int, Int>>
 }
 
 fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
@@ -107,7 +117,16 @@ fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() ->
     val valueChanging = SimpleBooleanProperty(false)
     valueChanging.bind(startSlider.valueChangingProperty().or(endSlider.valueChangingProperty()))
 
+    val bounds = SimpleObjectProperty<Pair<Int, Int>>()
+    bounds.onChange { newBounds ->
+        run {
+            startSlider.setBounds(newBounds)
+            endSlider.setBounds(newBounds)
+        }
+    }
+
     return object : MeasureRangeControl {
+        override fun boundsProperty(): ObjectProperty<Pair<Int, Int>> = bounds
         override fun valueProperty(): ObjectProperty<Pair<Int, Int>> = range
         override fun valueChangingProperty(): BooleanProperty = valueChanging
     }
