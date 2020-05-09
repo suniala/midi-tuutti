@@ -1,0 +1,114 @@
+package midituutti.components
+
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.value.ObservableValue
+import javafx.event.EventTarget
+import javafx.scene.Node
+import javafx.scene.control.Slider
+import javafx.scene.layout.Priority
+import midituutti.BidirectionalBridge
+import midituutti.Style
+import midituutti.bindBidirectional
+import midituutti.style
+import tornadofx.*
+
+interface MeasureSlider {
+    fun valueProperty(): IntegerProperty
+    fun valueChangingProperty(): BooleanProperty
+}
+
+fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
+    var theSlider: Slider by singleAssign()
+    val value = SimpleIntegerProperty(1)
+
+    hbox {
+        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+        nonFocusableButton("<") {
+            style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
+            action {
+                value.minusAssign(1)
+            }
+        }
+        theSlider = slider(1, 100) {
+            hgrow = Priority.ALWAYS
+            style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+        }
+        nonFocusableButton(">") {
+            style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
+            action {
+                value.plusAssign(1)
+            }
+        }
+
+        op()
+    }
+
+    theSlider.valueProperty().bindBidirectional(value)
+
+    return object : MeasureSlider {
+        override fun valueProperty(): IntegerProperty = value
+        override fun valueChangingProperty(): BooleanProperty = theSlider.valueChangingProperty()
+    }
+}
+
+interface MeasureRangeControl {
+    fun valueProperty(): ObjectProperty<Pair<Int, Int>>
+    fun valueChangingProperty(): BooleanProperty
+}
+
+fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
+    var startSlider: MeasureSlider by singleAssign()
+    var endSlider: MeasureSlider by singleAssign()
+
+    vbox {
+        startSlider = measureSlider(rootFontSize)
+        endSlider = measureSlider(rootFontSize)
+        op()
+    }
+
+    val range = SimpleObjectProperty<Pair<Int, Int>>(null)
+
+    bindBidirectional(object : BidirectionalBridge {
+        override fun leftSideObservables(): Collection<ObservableValue<*>> = listOf(
+                startSlider.valueProperty(),
+                endSlider.valueProperty())
+
+        override fun rightSideObservables(): Collection<ObservableValue<*>> = listOf(range)
+
+        override fun leftSideChanged() {
+            range.value = Pair(startSlider.valueProperty().value, endSlider.valueProperty().value)
+        }
+
+        override fun rightSideChanged() {
+            val newRange = range.value
+            startSlider.valueProperty().value = newRange.first
+            endSlider.valueProperty().value = newRange.second
+        }
+    })
+
+    startSlider.valueProperty().onChange { value ->
+        run {
+            if (endSlider.valueProperty().value - value < 0) endSlider.valueProperty().value = value
+        }
+    }
+    endSlider.valueProperty().onChange { value ->
+        run {
+            if (value - startSlider.valueProperty().value < 0) startSlider.valueProperty().value = value
+        }
+    }
+
+    val valueChanging = SimpleBooleanProperty(false)
+    valueChanging.bind(startSlider.valueChangingProperty().or(endSlider.valueChangingProperty()))
+
+    return object : MeasureRangeControl {
+        override fun valueProperty(): ObjectProperty<Pair<Int, Int>> = range
+        override fun valueChangingProperty(): BooleanProperty = valueChanging
+    }
+}
