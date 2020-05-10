@@ -567,7 +567,7 @@ class PlayerView : View("Player") {
 }
 
 @ExperimentalTime
-class RootView : View("Root") {
+class RootView : View("Midi-Tuutti") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
     private val engineController = tornadofx.find(EngineController::class)
