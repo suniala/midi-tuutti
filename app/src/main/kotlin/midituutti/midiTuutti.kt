@@ -24,6 +24,7 @@ import midituutti.engine.MidiTrack
 import midituutti.engine.MutePlaybackEvent
 import midituutti.engine.PlayEvent
 import midituutti.engine.PlaybackEvent
+import midituutti.engine.SongStructure
 import midituutti.engine.TempoEvent
 import midituutti.engine.createEngine
 import midituutti.midi.Tempo
@@ -36,7 +37,7 @@ import kotlin.time.ExperimentalTime
 val drumTrack = MidiTrack(10)
 
 class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
-class LoadEvent(val measures: Int) : FXEvent()
+class LoadEvent(val song: SongStructure) : FXEvent()
 
 enum class TempoMode {
     CONSTANT, MULTIPLIER
@@ -62,7 +63,7 @@ class EngineController : Controller() {
         engine().mute(ClickTrack)
         engine().unMute(drumTrack)
 
-        fire(LoadEvent(engineState.measures))
+        fire(LoadEvent(engineState.song))
     }
 
     fun togglePlay() {
@@ -112,7 +113,7 @@ class PlayerView : View("Player") {
     private val adjustedTempo = SimpleObjectProperty<Tempo?>()
     private val currentMeasure = SimpleObjectProperty<Int?>()
     private val currentTimeSignature = SimpleObjectProperty<TimeSignature?>()
-    private val measureCount = SimpleObjectProperty<Int?>()
+    private val song = SimpleObjectProperty<SongStructure?>()
     private val tempoModeGroup = ToggleGroup()
     private val tempoMode = tempoModeGroup.selectedValueProperty<TempoMode>()
 
@@ -197,8 +198,10 @@ class PlayerView : View("Player") {
                             label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                                textProperty().bind(measureCount.stringBinding { v ->
-                                    (v ?: 1).let { c -> "$c".padStart(3, ' ') }
+                                textProperty().bind(song.stringBinding { s ->
+                                    s?.let {
+                                        s.measures.size.let { c -> "$c".padStart(3, ' ') }
+                                    }
                                 })
                             }
                         }
@@ -263,10 +266,19 @@ class PlayerView : View("Player") {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
-                        label("?/?") {
+                        label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                            // TODO: next measure time signature
+                            textProperty().bind(currentMeasure.stringBinding { m ->
+                                m?.let {
+                                    song.value?.let { s ->
+                                        run {
+                                            val next = s.measures.getOrElse(m) { s.measures.first() }
+                                            "${next.timeSignature.numerator}/${next.timeSignature.denominator}"
+                                        }
+                                    }
+                                }
+                            })
                         }
                     }
                 }
@@ -530,10 +542,11 @@ class PlayerView : View("Player") {
         subscribe<LoadEvent> { event ->
             run {
                 tempoMode.value = TempoMode.MULTIPLIER
-                measureCount.value = event.measures
 
-                measureRangeBounds.value = Pair(1, event.measures)
+                measureRangeBounds.value = Pair(1, event.song.measures.size)
                 measureRange.value = measureRangeBounds.value
+
+                song.value = event.song
 
                 isDisable = false
             }

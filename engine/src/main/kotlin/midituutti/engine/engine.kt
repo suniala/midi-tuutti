@@ -363,7 +363,7 @@ private class PlayerEngine(val song: SongStructure, val player: Player) : Engine
     private fun notify(event: PlaybackEvent) = playbackListeners.forEach { pl -> pl(event) }
 }
 
-data class EngineInitialState(val engine: Engine, val measures: Int)
+data class EngineInitialState(val engine: Engine, val song: SongStructure)
 
 fun noOpTempoModifier(tempo: Tempo) = tempo
 
@@ -380,7 +380,7 @@ fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineIn
     val playerEngine = PlayerEngine(song, player)
     player.addPlayerListener(playerEngine)
 
-    return EngineInitialState(playerEngine, song.measures.size)
+    return EngineInitialState(playerEngine, song)
 }
 
 
