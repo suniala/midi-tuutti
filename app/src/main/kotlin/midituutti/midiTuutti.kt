@@ -549,11 +549,7 @@ class PlayerView : View("Player") {
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
 
-        measureRangeChanging.onChange { changing ->
-            if (!changing) {
-                engineController.resetMeasureRange(measureRange.value)
-            }
-        }
+        measureRange.onChange { range -> engineController.resetMeasureRange(range as Pair<Int, Int>) }
     }
 }
 

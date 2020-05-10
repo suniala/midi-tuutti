@@ -354,9 +354,10 @@ private class PlayerEngine(val song: SongStructure, val player: Player) : Engine
     }
 
     override fun resetMeasureRange(start: Int, end: Int) {
+        val wasPlaying = isPlaying()
         stop()
         player.resetMeasureRange(start, end)
-        play()
+        if (wasPlaying) play()
     }
 
     private fun notify(event: PlaybackEvent) = playbackListeners.forEach { pl -> pl(event) }
