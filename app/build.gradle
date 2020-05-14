@@ -1,12 +1,20 @@
-apply plugin: 'application'
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
 
 mainClassName = 'midituutti.MidiTuuttiKt'
 
 defaultTasks 'run'
 
+javafx {
+    version = "11.0.2"
+    modules = ['javafx.controls', 'javafx.graphics']
+}
+
 dependencies {
     compile project(':engine')
-    compile 'no.tornado:tornadofx:1.7.16'
+    compile 'no.tornado:tornadofx:1.7.20'
 }
 
 jar {
