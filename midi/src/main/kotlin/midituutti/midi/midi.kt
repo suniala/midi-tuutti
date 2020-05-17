@@ -149,16 +149,17 @@ class MidiPort(private val receiver: Receiver) {
 class MidiFile(private val seq: MidiSequence) {
     fun ticksPerBeat(): Int = seq.resolution
 
-    fun messages(): List<MidiMessage> =
-            seq.tracks
-                    .flatMap { track ->
-                        sequence {
-                            for (eventI in 0 until track.size()) {
-                                yield(JavaWrapperMessage(Tick(track.get(eventI).tick), track.get(eventI).message))
-                            }
-                        }.toList()
-                    }
-                    .sortedBy { m -> m.ticks }
+    val messages: List<MidiMessage> by lazy {
+        seq.tracks
+                .flatMap { track ->
+                    sequence {
+                        for (eventI in 0 until track.size()) {
+                            yield(JavaWrapperMessage(Tick(track.get(eventI).tick), track.get(eventI).message))
+                        }
+                    }.toList()
+                }
+                .sortedBy { m -> m.ticks }
+    }
 }
 
 fun openFile(path: String): MidiFile = openFile(File(path))

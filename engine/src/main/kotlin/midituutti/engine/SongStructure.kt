@@ -36,8 +36,8 @@ class SongStructure(val measures: List<Measure>) {
                 SongStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat()))
 
         private fun measures(midiFile: MidiFile): List<Measure> {
-            val timeSignatureMessage = midiFile.messages().find { m -> m.metaType() == MetaType.TimeSignature } as MidiMessage
-            return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, midiFile.messages())
+            val timeSignatureMessage = midiFile.messages.find { m -> m.metaType() == MetaType.TimeSignature } as MidiMessage
+            return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, midiFile.messages)
         }
 
         private fun measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
