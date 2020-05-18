@@ -1,7 +1,5 @@
 package midituutti.engine
 
-import midituutti.midi.Accessors
-import midituutti.midi.MetaType
 import midituutti.midi.MidiFile
 import midituutti.midi.MidiMessage
 import midituutti.midi.MidiPort
@@ -9,6 +7,7 @@ import midituutti.midi.Note
 import midituutti.midi.NoteMessage
 import midituutti.midi.OnOff
 import midituutti.midi.Tempo
+import midituutti.midi.TempoMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
 import midituutti.midi.createDefaultSynthesizerPort
@@ -25,20 +24,20 @@ fun Duration.millisPart(): Long = this.toLongMilliseconds()
 fun Duration.nanosPart(): Int = (this.toLongNanoseconds() - (this.millisPart() * 1000 * 1000)).toInt()
 
 private fun muteOrPass(mutedTracks: Set<EngineTrack>, message: MidiMessage): MidiMessage =
-        if (message.isNote()) {
-            val note = Accessors.noteAccessor.get(message)
-            if (mutedTracks.any { t: EngineTrack ->
-                        when (t) {
-                            is MidiTrack -> t.channel == note.channel
-                            else -> false
-                        }
-                    }) {
-                NoteMessage(message.ticks(), note.copy(velocity = 0))
-            } else {
-                message
+        when (message) {
+            is NoteMessage -> {
+                if (mutedTracks.any { t: EngineTrack ->
+                            when (t) {
+                                is MidiTrack -> t.channel == message.note().channel
+                                else -> false
+                            }
+                        }) {
+                    NoteMessage.fromNote(message.ticks(), message.note().copy(velocity = 0))
+                } else {
+                    message
+                }
             }
-        } else {
-            message
+            else -> message
         }
 
 sealed class EngineEvent {
@@ -106,7 +105,7 @@ fun createSingeNoteHitEngine(): SingleNoteHitEngine {
     val synthesizerPort = createDefaultSynthesizerPort()
 
     return object : SingleNoteHitEngine {
-        override fun sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage(Tick(1), note))
+        override fun sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage.fromNote(Tick(1), note))
 
         override fun quit(): Unit = synthesizerPort.panic()
     }
@@ -216,9 +215,13 @@ private class Player(val song: SongStructure,
     private fun handleEvent(event: EngineEvent): MidiMessage? {
         when (event) {
             is MessageEvent ->
-                if (event.message.metaType() == MetaType.Tempo) {
-                    tempo = Accessors.tempoAccessor.get(event.message)
-                    playerListeners.forEach { pl -> pl.tempoChanged() }
+                when (event.message) {
+                    is TempoMessage -> {
+                        tempo = event.message.tempo()
+                        playerListeners.forEach { pl -> pl.tempoChanged() }
+                    }
+                    else -> {
+                    }
                 }
             else -> {
             }
@@ -231,9 +234,9 @@ private class Player(val song: SongStructure,
                 if (!mutedTracks.contains(ClickTrack)) {
                     with(event) {
                         when (click) {
-                            ClickType.One -> NoteMessage(ticks(), Note(OnOff.On, 10, 31, 100))
-                            ClickType.Quarter -> NoteMessage(ticks(), Note(OnOff.On, 10, 77, 100))
-                            ClickType.Eight -> NoteMessage(ticks(), Note(OnOff.On, 10, 75, 100))
+                            ClickType.One -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 31, 100))
+                            ClickType.Quarter -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 77, 100))
+                            ClickType.Eight -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 75, 100))
                         }
                     }
                 } else {

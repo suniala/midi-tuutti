@@ -40,8 +40,8 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 * Keep track of instrument changes and reset instruments when jumping between measures
 
 ## Development
-Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/) and 
-[TornadoFX](https://github.com/edvin/tornadofx).
+Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/), 
+[TornadoFX](https://github.com/edvin/tornadofx) and [java-midi-decoder](https://github.com/suniala/java-midi-decoder).
 
 Start with: `./gradlew run`.
 

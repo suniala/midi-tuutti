@@ -1,5 +1,10 @@
 package midituutti.midi
 
+import fi.kapsi.kosmik.javamididecoder.MidiDecoder
+import fi.kapsi.kosmik.javamididecoder.MidiM
+import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTempoM
+import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTimeSignatureM
+import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiNoteM
 import java.io.File
 import java.io.InputStream
 import javax.sound.midi.MidiSystem
@@ -7,15 +12,21 @@ import javax.sound.midi.Receiver
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.microseconds
-import javax.sound.midi.MetaMessage as JavaMetaMessage
 import javax.sound.midi.MidiMessage as JavaMidiMessage
 import javax.sound.midi.Sequence as MidiSequence
 import javax.sound.midi.ShortMessage as JavaShortMessage
-import javax.sound.midi.SysexMessage as JavaSysexMessage
 
 /**
  * Thin wrappers for the Java MidiSystem.
  */
+
+enum class OnOff {
+    On, Off
+}
+
+data class Note(val onOff: OnOff, val channel: Int, val note: Int, val velocity: Int)
+
+data class TimeSignature(val numerator: Int, val denominator: Int)
 
 class Tempo(val bpm: Double) {
     operator fun times(other: Double): Tempo = Tempo(bpm * other)
@@ -46,90 +57,48 @@ data class Tick(val tick: Long) : Comparable<Tick> {
     }
 }
 
-enum class MetaType {
-    Tempo {
-        override val label: String
-            get() = "tempo"
-    },
-    TimeSignature {
-        override val label: String
-            get() = "time-signature"
-    },
-    NotSupported {
-        override val label: String
-            get() = "not-supported"
-    };
-
-    abstract val label: String
-}
-
-sealed class MidiMessage {
-    abstract fun ticks(): Tick
+sealed class MidiMessage(private val ticks: Tick) {
+    fun ticks(): Tick = ticks
 
     abstract fun toJava(): JavaMidiMessage
-
-    abstract fun isMeta(): Boolean
-
-    abstract fun isNote(): Boolean
-
-    abstract fun metaType(): MetaType?
-
-    fun <T> get(accessor: MetaAccessor<T>): T = accessor.get(this)
-
-    override fun toString(): String =
-            "MidiMessage(isMeta=${isMeta()}, metaType=${metaType()})"
 }
 
-data class NoteMessage(val ticks: Tick, val note: Note) : MidiMessage() {
-    override fun ticks(): Tick = ticks
+class NoteMessage(ticks: Tick, private val original: MidiNoteM) : MidiMessage(ticks) {
+    override fun toJava(): JavaMidiMessage = original.rawMessage
 
-    override fun toJava(): JavaMidiMessage = JavaShortMessage(
-            when (note.onOff) {
-                OnOff.On -> JavaShortMessage.NOTE_ON
-                else -> JavaShortMessage.NOTE_OFF
-            },
-            note.channel - 1,
-            note.note,
-            note.velocity
-    )
+    fun note(): Note = Note(if (original.isOn) OnOff.On else OnOff.Off,
+            original.channel, original.note, original.velocity)
 
-    override fun isMeta(): Boolean = false
-
-    override fun isNote(): Boolean = true
-
-    override fun metaType(): MetaType? = null
-
-    override fun toString(): String =
-            "NoteMessage(ticks=$ticks, note=$note)"
-}
-
-private class JavaWrapperMessage(val ticks: Tick, val message: JavaMidiMessage) : MidiMessage() {
-    override fun ticks(): Tick = ticks
-
-    override fun toJava(): JavaMidiMessage = message
-
-    override fun isMeta(): Boolean = message is JavaMetaMessage
-
-    fun commandIn(jsm: JavaShortMessage, vararg commands: Int): Boolean = commands.contains(jsm.command)
-
-    override fun isNote(): Boolean = message is JavaShortMessage &&
-            commandIn(message, JavaShortMessage.NOTE_OFF, JavaShortMessage.NOTE_ON)
-
-    override fun metaType(): MetaType? =
-            when (message) {
-                is JavaMetaMessage -> metaTypeOf(message)
-                else -> null
-            }
-
-    fun javaMessageType(): String = when (message) {
-        is JavaShortMessage -> "short"
-        is JavaMetaMessage -> "meta"
-        is JavaSysexMessage -> "sysex"
-        else -> "unknown"
+    companion object {
+        fun fromNote(ticks: Tick, note: Note): NoteMessage {
+            val javaMidiMessage = JavaShortMessage(
+                    when (note.onOff) {
+                        OnOff.On -> JavaShortMessage.NOTE_ON
+                        else -> JavaShortMessage.NOTE_OFF
+                    },
+                    note.channel - 1,
+                    note.note,
+                    note.velocity
+            )
+            return NoteMessage(ticks, MidiDecoder.decodeMessage(javaMidiMessage) as MidiNoteM)
+        }
     }
+}
 
-    override fun toString(): String =
-            "JavaWrapperMessage(ticks=$ticks, javaMessageType=${javaMessageType()} isNote=${isNote()})"
+class TempoMessage(ticks: Tick, private val original: MidiTempoM) : MidiMessage(ticks) {
+    override fun toJava(): JavaMidiMessage = original.rawMessage
+
+    fun tempo(): Tempo = Tempo(original.bpm.toDouble())
+}
+
+class TimeSignatureMessage(ticks: Tick, private val original: MidiTimeSignatureM) : MidiMessage(ticks) {
+    override fun toJava(): JavaMidiMessage = original.rawMessage
+
+    fun timeSignature(): TimeSignature = TimeSignature(original.timeSignature.beats, original.timeSignature.unit)
+}
+
+class UnspecifiedMessage(ticks: Tick, private val original: MidiM<*>) : MidiMessage(ticks) {
+    override fun toJava(): JavaMidiMessage = original.rawMessage
 }
 
 class MidiPort(private val receiver: Receiver) {
@@ -154,11 +123,19 @@ class MidiFile(private val seq: MidiSequence) {
                 .flatMap { track ->
                     sequence {
                         for (eventI in 0 until track.size()) {
-                            yield(JavaWrapperMessage(Tick(track.get(eventI).tick), track.get(eventI).message))
+                            val message = track.get(eventI)
+                            val ticks = Tick(message.tick)
+                            val dm = MidiDecoder.decodeMessage(message.message)
+                            yield(when (dm) {
+                                is MidiNoteM -> NoteMessage(ticks, dm)
+                                is MidiTempoM -> TempoMessage(ticks, dm)
+                                is MidiTimeSignatureM -> TimeSignatureMessage(ticks, dm)
+                                else -> UnspecifiedMessage(ticks, dm)
+                            })
                         }
                     }.toList()
                 }
-                .sortedBy { m -> m.ticks }
+                .sortedBy { m -> m.ticks() }
     }
 }
 

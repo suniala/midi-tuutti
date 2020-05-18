@@ -1,11 +1,10 @@
 package midituutti.engine
 
-import midituutti.midi.Accessors
-import midituutti.midi.MetaType
 import midituutti.midi.MidiFile
 import midituutti.midi.MidiMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
+import midituutti.midi.TimeSignatureMessage
 
 data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSignature, val events: List<EngineEvent>) {
     fun chunked(): Sequence<Pair<Tick, List<EngineEvent>>> = sequence {
@@ -36,7 +35,7 @@ class SongStructure(val measures: List<Measure>) {
                 SongStructure(injectClick(measures(midiFile), midiFile.ticksPerBeat()))
 
         private fun measures(midiFile: MidiFile): List<Measure> {
-            val timeSignatureMessage = midiFile.messages.find { m -> m.metaType() == MetaType.TimeSignature } as MidiMessage
+            val timeSignatureMessage = midiFile.messages.find { m -> m is TimeSignatureMessage } as TimeSignatureMessage
             return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, midiFile.messages)
         }
 
@@ -70,8 +69,8 @@ class SongStructure(val measures: List<Measure>) {
     }
 
     private class Parser(val ticksPerBeat: Int) {
-        fun parse(ts: MidiMessage, messages: List<MidiMessage>): List<Measure> =
-                parseRec(emptyList(), ts.get(Accessors.timeSignatureAccessor), ts.ticks(), emptyList(), messages)
+        fun parse(ts: TimeSignatureMessage, messages: List<MidiMessage>): List<Measure> =
+                parseRec(emptyList(), ts.timeSignature(), ts.ticks(), emptyList(), messages)
 
         private fun withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean {
             val delta = message.ticks() - measureStart
@@ -92,8 +91,8 @@ class SongStructure(val measures: List<Measure>) {
                 val message = rem.first()
 
                 val nextTimeSignature =
-                        if (message.metaType() == MetaType.TimeSignature) {
-                            message.get(Accessors.timeSignatureAccessor)
+                        if (message is TimeSignatureMessage) {
+                            message.timeSignature()
                         } else currTimeSignature
 
                 return if (withinMeasure(message, currTimeSignature, measureStart)) {
