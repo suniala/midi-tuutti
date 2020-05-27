@@ -25,6 +25,21 @@ interface MeasureSlider {
     fun setBounds(bounds: Pair<Int, Int>?)
 }
 
+class NonFocusableSlider() : Slider() {
+    override fun requestFocus() {
+        // Ignore focus request.
+    }
+}
+
+fun EventTarget.nonFocusableSlider(
+        min: Number? = null,
+        max: Number? = null,
+        op: Slider.() -> Unit = {}
+) = NonFocusableSlider().attachTo(this, op) {
+    if (min != null) it.min = min.toDouble()
+    if (max != null) it.max = max.toDouble()
+}
+
 fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
     var theSlider: Slider by singleAssign()
     val value = SimpleIntegerProperty(1)
@@ -38,7 +53,7 @@ fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit 
                 value.minusAssign(1)
             }
         }
-        theSlider = slider(1, 100) {
+        theSlider = nonFocusableSlider(1, 100) {
             hgrow = Priority.ALWAYS
             style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
         }
