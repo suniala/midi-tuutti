@@ -71,7 +71,7 @@ typealias PlaybackListener = (PlaybackEvent) -> Unit
 
 object ClickTrack : EngineTrack
 
-interface Engine {
+interface Player {
     fun isPlaying(): Boolean
 
     fun play()
@@ -80,9 +80,9 @@ interface Engine {
 
     fun quit()
 
-    fun mute(track: EngineTrack): Engine
+    fun mute(track: EngineTrack): Player
 
-    fun unMute(track: EngineTrack): Engine
+    fun unMute(track: EngineTrack): Player
 
     fun isMuted(track: EngineTrack): Boolean
 
@@ -117,10 +117,10 @@ private interface PlayerListener {
 }
 
 @ExperimentalTime
-private class Player(val song: SongStructure,
-                     var tempoModifier: (Tempo) -> Tempo,
-                     val midiFile: MidiFile,
-                     val synthesizerPort: MidiPort) : Thread() {
+private class MidiPlayer(val song: SongStructure,
+                         var tempoModifier: (Tempo) -> Tempo,
+                         val midiFile: MidiFile,
+                         val synthesizerPort: MidiPort) : Thread() {
     val playerListeners = mutableListOf<PlayerListener>()
 
     init {
@@ -291,26 +291,26 @@ private class Player(val song: SongStructure,
 }
 
 @ExperimentalTime
-private class PlayerEngine(val song: SongStructure, val player: Player) : Engine, PlayerListener {
+private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener {
     private val playbackListeners = mutableSetOf<PlaybackListener>()
 
-    override fun isPlaying(): Boolean = player.isPlaying()
+    override fun isPlaying(): Boolean = midiPlayer.isPlaying()
 
     override fun play() {
         EngineTraceLogger.start()
-        player.play()
+        midiPlayer.play()
         notify(PlayEvent(true))
     }
 
     override fun stop() {
         EngineTraceLogger.stop()
-        if (player.isPlaying()) {
+        if (midiPlayer.isPlaying()) {
             signalStop()
         }
     }
 
     private fun signalStop() {
-        player.stopPlaying()
+        midiPlayer.stopPlaying()
         notify(PlayEvent(false))
     }
 
@@ -318,26 +318,26 @@ private class PlayerEngine(val song: SongStructure, val player: Player) : Engine
         signalStop()
     }
 
-    override fun mute(track: EngineTrack): Engine {
-        player.mute(track)
+    override fun mute(track: EngineTrack): Player {
+        midiPlayer.mute(track)
         notify(MutePlaybackEvent(track, true))
         return this
     }
 
-    override fun unMute(track: EngineTrack): Engine {
-        player.unMute(track)
+    override fun unMute(track: EngineTrack): Player {
+        midiPlayer.unMute(track)
         notify(MutePlaybackEvent(track, false))
         return this
     }
 
-    override fun isMuted(track: EngineTrack): Boolean = player.isMuted(track)
+    override fun isMuted(track: EngineTrack): Boolean = midiPlayer.isMuted(track)
 
     override fun addPlaybackListener(listener: PlaybackListener) {
         playbackListeners.add(listener)
     }
 
     override fun tempoChanged(): Unit =
-            TempoEvent(player.currentTempo(), player.currentAdjustedTempo()).let { event ->
+            TempoEvent(midiPlayer.currentTempo(), midiPlayer.currentAdjustedTempo()).let { event ->
                 playbackListeners.forEach { listener -> listener(event) }
             }
 
@@ -346,45 +346,49 @@ private class PlayerEngine(val song: SongStructure, val player: Player) : Engine
     }
 
     override fun setTempoModifier(f: (Tempo) -> Tempo) {
-        player.tempoModifier = f
+        midiPlayer.tempoModifier = f
         tempoChanged()
     }
 
     override fun jumpToBar(f: (Int) -> Int) {
         stop()
-        player.setCurrentMeasure(f(player.currentMeasure()))
+        midiPlayer.setCurrentMeasure(f(midiPlayer.currentMeasure()))
         play()
     }
 
     override fun resetMeasureRange(start: Int, end: Int) {
         val wasPlaying = isPlaying()
         stop()
-        player.resetMeasureRange(start, end)
+        midiPlayer.resetMeasureRange(start, end)
         if (wasPlaying) play()
     }
 
     private fun notify(event: PlaybackEvent) = playbackListeners.forEach { pl -> pl(event) }
 }
 
-data class EngineInitialState(val engine: Engine, val song: SongStructure)
+data class PlayerInitialState(val player: Player, val song: SongStructure)
 
 fun noOpTempoModifier(tempo: Tempo) = tempo
 
-@ExperimentalTime
-fun createEngine(filePath: String, initialFrom: Int?, initialTo: Int?): EngineInitialState {
-    val synthesizerPort = createDefaultSynthesizerPort()
-    val midiFile = openFile(filePath)
-    val song = SongStructure.withClick(midiFile)
+object PlaybackEngine {
+    private var synthesizerPort: MidiPort? = null
 
-    val player = Player(song, ::noOpTempoModifier, midiFile, synthesizerPort)
-    player.resetMeasureRange(initialFrom ?: 1, initialTo ?: song.measures.size)
-    player.start()
+    fun initialize() {
+        synthesizerPort = createDefaultSynthesizerPort()
+    }
 
-    val playerEngine = PlayerEngine(song, player)
-    player.addPlayerListener(playerEngine)
+    @ExperimentalTime
+    fun createPlayer(filePath: String, initialFrom: Int?, initialTo: Int?): PlayerInitialState {
+        val midiFile = openFile(filePath)
+        val song = SongStructure.withClick(midiFile)
 
-    return EngineInitialState(playerEngine, song)
+        val midiPlayer = MidiPlayer(song, ::noOpTempoModifier, midiFile, synthesizerPort!!)
+        midiPlayer.resetMeasureRange(initialFrom ?: 1, initialTo ?: song.measures.size)
+        midiPlayer.start()
+
+        val playerControl = PlayerControl(midiPlayer)
+        midiPlayer.addPlayerListener(playerControl)
+
+        return PlayerInitialState(playerControl, song)
+    }
 }
-
-
-

@@ -17,16 +17,17 @@ import midituutti.components.measureRangeControl
 import midituutti.components.nonFocusableButton
 import midituutti.components.nonFocusableToggleButton
 import midituutti.engine.ClickTrack
-import midituutti.engine.Engine
 import midituutti.engine.EngineTrack
 import midituutti.engine.MeasurePlaybackEvent
 import midituutti.engine.MidiTrack
 import midituutti.engine.MutePlaybackEvent
 import midituutti.engine.PlayEvent
+import midituutti.engine.PlaybackEngine
+import midituutti.engine.PlaybackEngine.createPlayer
 import midituutti.engine.PlaybackEvent
+import midituutti.engine.Player
 import midituutti.engine.SongStructure
 import midituutti.engine.TempoEvent
-import midituutti.engine.createEngine
 import midituutti.midi.Tempo
 import midituutti.midi.TimeSignature
 import tornadofx.*
@@ -48,56 +49,56 @@ enum class TempoAdjustment {
 }
 
 @ExperimentalTime
-class EngineController : Controller() {
-    private var engine: Engine? = null
+class PlayerController : Controller() {
+    private var player: Player? = null
 
     fun openFile(file: File) {
-        engine?.quit()
-        val engineState = createEngine(file.absolutePath, null, null)
-        engine = engineState.engine
-        // Pass events from the engine thread to the ui thread via TornadoFX EventBus
-        engine().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
+        player?.quit()
+        val playerState = createPlayer(file.absolutePath, null, null)
+        player = playerState.player
+        // Pass events from the player thread to the ui thread via TornadoFX EventBus
+        player().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
 
-        // Propagating current button positions to the new engine instance is a bit difficult so let's just
+        // Propagating current button positions to the new player instance is a bit difficult so let's just
         // reset everything.
-        engine().mute(ClickTrack)
-        engine().unMute(drumTrack)
+        player().mute(ClickTrack)
+        player().unMute(drumTrack)
 
-        fire(LoadEvent(engineState.song))
+        fire(LoadEvent(playerState.song))
     }
 
     fun togglePlay() {
-        if (engine().isPlaying()) engine().stop()
-        else engine().play()
+        if (player().isPlaying()) player().stop()
+        else player().play()
     }
 
     fun toggleTrack(track: EngineTrack) {
-        if (engine().isMuted(track)) engine().unMute((track))
-        else engine().mute(track)
+        if (player().isMuted(track)) player().unMute((track))
+        else player().mute(track)
     }
 
     fun toggleClick() {
-        if (engine().isMuted(ClickTrack)) engine().unMute(ClickTrack)
-        else engine().mute(ClickTrack)
+        if (player().isMuted(ClickTrack)) player().unMute(ClickTrack)
+        else player().mute(ClickTrack)
     }
 
-    private fun engine(): Engine {
-        return engine ?: throw IllegalStateException()
+    private fun player(): Player {
+        return player ?: throw IllegalStateException()
     }
 
-    fun jump(f: (Int) -> Int) = engine().jumpToBar(f)
+    fun jump(f: (Int) -> Int) = player().jumpToBar(f)
 
     fun resetMeasureRange(range: Pair<Int, Int>) {
-        engine().resetMeasureRange(range.first, range.second)
+        player().resetMeasureRange(range.first, range.second)
     }
 
-    fun setTempoModifier(f: (Tempo) -> Tempo) = engine().setTempoModifier(f)
+    fun setTempoModifier(f: (Tempo) -> Tempo) = player().setTempoModifier(f)
 }
 
 @ExperimentalTime
 class PlayerView : View("Player") {
     val rootFontSize: DoubleProperty by param()
-    val engineController: EngineController by param()
+    val playerController: PlayerController by param()
 
     private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
     private val measureRangeChanging = SimpleBooleanProperty(false)
@@ -119,8 +120,8 @@ class PlayerView : View("Player") {
 
     private fun updateTempoModifier(tempoMode: TempoMode, multiplier: Double, constant: Tempo) {
         when (tempoMode) {
-            TempoMode.MULTIPLIER -> engineController.setTempoModifier(fun(tempo: Tempo) = tempo * multiplier)
-            TempoMode.CONSTANT -> engineController.setTempoModifier(fun(_) = constant)
+            TempoMode.MULTIPLIER -> playerController.setTempoModifier(fun(tempo: Tempo) = tempo * multiplier)
+            TempoMode.CONSTANT -> playerController.setTempoModifier(fun(_) = constant)
         }
     }
 
@@ -371,7 +372,7 @@ class PlayerView : View("Player") {
                             style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                             shortcut("Space") { fire() }
                             action {
-                                engineController.togglePlay()
+                                playerController.togglePlay()
                             }
                         }
 
@@ -381,21 +382,21 @@ class PlayerView : View("Player") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                 shortcut("Home")
                                 action {
-                                    engineController.jump { 0 }
+                                    playerController.jump { 0 }
                                 }
                             }
                             nonFocusableButton("<") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                 shortcut("A")
                                 action {
-                                    engineController.jump { m -> m - 1 }
+                                    playerController.jump { m -> m - 1 }
                                 }
                             }
                             nonFocusableButton(">") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                 shortcut("D")
                                 action {
-                                    engineController.jump { m -> m + 1 }
+                                    playerController.jump { m -> m + 1 }
                                 }
                             }
                         }
@@ -424,7 +425,7 @@ class PlayerView : View("Player") {
                                 }
                                 textProperty().bind(stateText)
                                 action {
-                                    engineController.toggleClick()
+                                    playerController.toggleClick()
                                 }
                             }
 
@@ -438,7 +439,7 @@ class PlayerView : View("Player") {
                                 }
                                 textProperty().bind(stateText)
                                 action {
-                                    engineController.toggleTrack(drumTrack)
+                                    playerController.toggleTrack(drumTrack)
                                 }
                             }
                         }
@@ -562,7 +563,7 @@ class PlayerView : View("Player") {
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
 
-        measureRange.onChange { range -> engineController.resetMeasureRange(range as Pair<Int, Int>) }
+        measureRange.onChange { range -> playerController.resetMeasureRange(range as Pair<Int, Int>) }
     }
 }
 
@@ -570,11 +571,11 @@ class PlayerView : View("Player") {
 class RootView : View("Midi-Tuutti") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
-    private val engineController = tornadofx.find(EngineController::class)
+    private val playerController = tornadofx.find(PlayerController::class)
 
     private val playerView = find<PlayerView>(mapOf(
             PlayerView::rootFontSize to rootFontSize,
-            PlayerView::engineController to engineController))
+            PlayerView::playerController to playerController))
 
     override val root = borderpane() {
         top = menubar {
@@ -590,7 +591,7 @@ class RootView : View("Midi-Tuutti") {
                     }
                     val selectedFile = fileChooser.showOpenDialog(primaryStage)
                     if (selectedFile != null) {
-                        engineController.openFile(selectedFile)
+                        playerController.openFile(selectedFile)
                     }
                 }
                 separator()
@@ -612,6 +613,8 @@ class MidiTuuttiApp : App() {
     private val preferredWidth = preferredHeight * 1.4
 
     override fun start(stage: Stage) {
+        PlaybackEngine.initialize()
+
         with(stage) {
             super.start(this)
             importStylesheet(Style::class)
@@ -622,8 +625,8 @@ class MidiTuuttiApp : App() {
             parameters.raw.firstOrNull()?.let { path ->
                 val file = File(path)
                 if (file.exists() && file.isFile && file.canRead()) {
-                    val engineController = find(EngineController::class)
-                    engineController.openFile(file)
+                    val playerController = find(PlayerController::class)
+                    playerController.openFile(file)
                 }
             }
 
