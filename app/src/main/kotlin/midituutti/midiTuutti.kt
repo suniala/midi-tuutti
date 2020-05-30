@@ -548,6 +548,8 @@ class PlayerView : View("Player") {
                 measureRange.value = measureRangeBounds.value
 
                 song.value = event.song
+                currentTimeSignature.value = event.song.measures.first().timeSignature
+                currentMeasure.value = 1
 
                 isDisable = false
             }
