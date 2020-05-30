@@ -44,10 +44,10 @@ class SongStructure(val measures: List<Measure>) {
         }
 
         private fun measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
-                Tick((ticksPerBeat * timeSignature.numerator / (timeSignature.denominator / 4).toLong()))
+                Tick((ticksPerBeat * timeSignature.beats / (timeSignature.unit / 4).toLong()))
 
         private fun beatTicks(beat: Int, ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
-                Tick((ticksPerBeat * (beat - 1) / (timeSignature.denominator / (2 * timeSignature.denominator / 4).toLong())))
+                Tick((ticksPerBeat * (beat - 1) / (timeSignature.unit / (2 * timeSignature.unit / 4).toLong())))
 
         private fun injectClick(measures: List<Measure>, ticksPerBeat: Int): List<Measure> {
             fun clickType(eight: Int): ClickType {
@@ -60,7 +60,7 @@ class SongStructure(val measures: List<Measure>) {
             }
 
             fun measureClick(measure: Measure): Measure {
-                val eightCount = measure.timeSignature.numerator * 8 / measure.timeSignature.denominator
+                val eightCount = measure.timeSignature.beats * 8 / measure.timeSignature.unit
                 val clickEventTicks = (1..eightCount)
                         .map { t -> measure.start + beatTicks(t, ticksPerBeat, measure.timeSignature) }
                 val clickEvents = clickEventTicks

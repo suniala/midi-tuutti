@@ -235,7 +235,7 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
                                 textProperty().bind(currentTimeSignature.stringBinding { ts ->
-                                    ts?.numerator?.toString() ?: ""
+                                    ts?.beats?.toString() ?: ""
                                 })
                             }
                             spacer()
@@ -250,7 +250,7 @@ class PlayerView : View("Player") {
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
                                 textProperty().bind(currentTimeSignature.stringBinding { ts ->
-                                    ts?.denominator?.toString() ?: ""
+                                    ts?.unit?.toString() ?: ""
                                 })
                             }
                             spacer()
@@ -275,7 +275,7 @@ class PlayerView : View("Player") {
                                     song.value?.let { s ->
                                         run {
                                             val next = s.measures.getOrElse(m) { s.measures.first() }
-                                            "${next.timeSignature.numerator}/${next.timeSignature.denominator}"
+                                            "${next.timeSignature.beats}/${next.timeSignature.unit}"
                                         }
                                     }
                                 }

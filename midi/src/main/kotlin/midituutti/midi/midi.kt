@@ -26,7 +26,7 @@ enum class OnOff {
 
 data class Note(val onOff: OnOff, val channel: Int, val note: Int, val velocity: Int)
 
-data class TimeSignature(val numerator: Int, val denominator: Int)
+data class TimeSignature(val beats: Int, val unit: Int)
 
 class Tempo(val bpm: Double) {
     operator fun times(other: Double): Tempo = Tempo(bpm * other)
