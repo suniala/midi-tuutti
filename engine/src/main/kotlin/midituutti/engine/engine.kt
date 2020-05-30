@@ -64,8 +64,7 @@ sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()
 data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
 data class MeasurePlaybackEvent(val measure: Int, val timeSignature: TimeSignature) : PlaybackEvent()
-data class TempoEvent(val tempo: Tempo?,
-                      val adjustedTempo: Tempo?) : PlaybackEvent()
+data class TempoEvent(val tempo: Tempo, val adjustedTempo: Tempo) : PlaybackEvent()
 
 typealias PlaybackListener = (PlaybackEvent) -> Unit
 
@@ -133,7 +132,7 @@ private class MidiPlayer(val song: SongStructure,
 
     private val mutedTracks = mutableSetOf<EngineTrack>()
 
-    private var tempo: Tempo? = null
+    private var tempo: Tempo = song.measures.first().initialTempo
 
     private var playing = false
 
@@ -155,9 +154,9 @@ private class MidiPlayer(val song: SongStructure,
 
     fun isMuted(track: EngineTrack): Boolean = mutedTracks.contains(track)
 
-    fun currentTempo(): Tempo? = tempo
+    fun currentTempo(): Tempo = tempo
 
-    fun currentAdjustedTempo(): Tempo? = tempo?.let { t -> tempoModifier(t) }
+    fun currentAdjustedTempo(): Tempo = tempoModifier(tempo)
 
     override fun run() {
         while (true) {
@@ -175,12 +174,16 @@ private class MidiPlayer(val song: SongStructure,
                     song.measures.asSequence().drop(startFrom - 1).take(end as Int - startFrom + 1).forEach { measure ->
                         println("player: at ${measure.number}")
                         currentMeasure = measure.number
-                        playerListeners.forEach { pl -> pl.atMeasureStart(measure.number, measure.timeSignature) }
+                        tempo = measure.initialTempo
+                        playerListeners.forEach { pl ->
+                            pl.atMeasureStart(measure.number, measure.timeSignature)
+                            pl.tempoChanged()
+                        }
 
                         measure.chunked().forEach { (ticks, events) ->
                             if (playing) {
                                 val ticksDelta = ticks - (prevTicks ?: ticks)
-                                val timestampDelta = tempo?.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
+                                val timestampDelta = tempo.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
                                 val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
 
                                 (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->

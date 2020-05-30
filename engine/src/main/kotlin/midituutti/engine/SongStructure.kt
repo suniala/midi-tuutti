@@ -2,11 +2,14 @@ package midituutti.engine
 
 import midituutti.midi.MidiFile
 import midituutti.midi.MidiMessage
+import midituutti.midi.Tempo
+import midituutti.midi.TempoMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
 import midituutti.midi.TimeSignatureMessage
 
-data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSignature, val events: List<EngineEvent>) {
+data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSignature,
+                   val initialTempo: Tempo, val events: List<EngineEvent>) {
     fun chunked(): Sequence<Pair<Tick, List<EngineEvent>>> = sequence {
         var chunkEvents = arrayListOf<EngineEvent>()
         for (event in events) {
@@ -36,7 +39,8 @@ class SongStructure(val measures: List<Measure>) {
 
         private fun measures(midiFile: MidiFile): List<Measure> {
             val timeSignatureMessage = midiFile.messages.find { m -> m is TimeSignatureMessage } as TimeSignatureMessage
-            return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, midiFile.messages)
+            val tempoMessage = midiFile.messages.find { m -> m is TempoMessage } as TempoMessage
+            return Parser(midiFile.ticksPerBeat()).parse(timeSignatureMessage, tempoMessage, midiFile.messages)
         }
 
         private fun measureTicks(ticksPerBeat: Int, timeSignature: TimeSignature): Tick =
@@ -69,8 +73,8 @@ class SongStructure(val measures: List<Measure>) {
     }
 
     private class Parser(val ticksPerBeat: Int) {
-        fun parse(ts: TimeSignatureMessage, messages: List<MidiMessage>): List<Measure> =
-                parseRec(emptyList(), ts.timeSignature(), ts.ticks(), emptyList(), messages)
+        fun parse(ts: TimeSignatureMessage, initialTempo: TempoMessage, messages: List<MidiMessage>): List<Measure> =
+                parseRec(emptyList(), ts.timeSignature(), initialTempo.tempo(), ts.ticks(), emptyList(), messages)
 
         private fun withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean {
             val delta = message.ticks() - measureStart
@@ -82,11 +86,12 @@ class SongStructure(val measures: List<Measure>) {
 
         private tailrec fun parseRec(acc: List<Measure>,
                                      currTimeSignature: TimeSignature,
+                                     currTempo: Tempo,
                                      measureStart: Tick,
                                      measure: List<EngineEvent>,
                                      rem: List<MidiMessage>): List<Measure> {
             if (rem.isEmpty()) {
-                return acc + Measure(acc.size + 1, measureStart, currTimeSignature, measure)
+                return acc + Measure(acc.size + 1, measureStart, currTimeSignature, currTempo, measure)
             } else {
                 val message = rem.first()
 
@@ -94,13 +99,17 @@ class SongStructure(val measures: List<Measure>) {
                         if (message is TimeSignatureMessage) {
                             message.timeSignature()
                         } else currTimeSignature
+                val nextTempo = if (message is TempoMessage) {
+                    message.tempo()
+                } else currTempo
 
                 return if (withinMeasure(message, currTimeSignature, measureStart)) {
-                    parseRec(acc, nextTimeSignature, measureStart, measure + MessageEvent(message), rem.drop(1))
+                    parseRec(acc, nextTimeSignature, nextTempo, measureStart, measure + MessageEvent(message), rem.drop(1))
                 } else {
                     parseRec(
-                            acc + Measure(acc.size + 1, measureStart, currTimeSignature, measure),
+                            acc + Measure(acc.size + 1, measureStart, currTimeSignature, currTempo, measure),
                             nextTimeSignature,
+                            nextTempo,
                             nextMeasureStart(measureStart, currTimeSignature),
                             listOf(MessageEvent(message)),
                             rem.drop(1))
