@@ -11,12 +11,12 @@ import tornadofx.*
 fun EventTarget.nonFocusableToggleButton(
         text: String? = null,
         group: ToggleGroup? = null,
-        selectFirst: Boolean = true,
+        selectFirst: Boolean = false,
         value: Any? = null,
         op: ToggleButton.() -> Unit = {}
 ) = togglebutton(text = text, group = group, selectFirst = selectFirst, value = value) {
     addClass(Style.button)
-    isSelected = false
+    isSelected = selectFirst
     isFocusTraversable = false
     op()
 }
