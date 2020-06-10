@@ -562,6 +562,7 @@ class PlayerView : View("Player") {
             updateTempoModifier(tempoMode.value, tempoMultiplier.value, tempo as Tempo)
         }
         tempoMode.onChange { mode ->
+            constantTempo.value = songTempo.value as Tempo
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
 
