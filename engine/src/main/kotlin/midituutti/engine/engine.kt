@@ -184,7 +184,7 @@ private class MidiPlayer(val song: SongStructure,
                             if (playing) {
                                 val ticksDelta = ticks - (prevTicks ?: ticks)
                                 val timestampDelta = tempo.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
-                                val chunkCalculatedTs = prevChunkCalculatedTs + (timestampDelta ?: Duration.ZERO)
+                                val chunkCalculatedTs = prevChunkCalculatedTs + timestampDelta
 
                                 (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
                                     if (timeToEventCalculatedNs.isPositive()) {

@@ -25,7 +25,7 @@ interface MeasureSlider {
     fun setBounds(bounds: Pair<Int, Int>?)
 }
 
-class NonFocusableSlider() : Slider() {
+class NonFocusableSlider : Slider() {
     override fun requestFocus() {
         // Ignore focus request.
     }

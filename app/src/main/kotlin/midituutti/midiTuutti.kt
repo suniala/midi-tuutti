@@ -582,7 +582,7 @@ class RootView : View("Midi-Tuutti") {
 
     private var lastDir: File? = System.getProperty("midituutti.initialDir")?.let { File(it) }
 
-    override val root = borderpane() {
+    override val root = borderpane {
         top = menubar {
             menu("File") {
                 item("Open", "Shortcut+O").action {
