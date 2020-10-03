@@ -14,7 +14,7 @@ javafx {
 
 dependencies {
     compile project(':engine')
-    compile 'no.tornado:tornadofx:1.7.20'
+    compile 'no.tornado:tornadofx:2.0.0-SNAPSHOT'
 }
 
 jar {

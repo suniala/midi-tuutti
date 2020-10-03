@@ -637,7 +637,7 @@ class MidiTuuttiApp : App() {
             // window dimensions.
             height = preferredHeight
             width = preferredWidth
-            isResizable = false
+            isResizable = true
         }
     }
 }
