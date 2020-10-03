@@ -46,3 +46,15 @@ Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/),
 Start with: `./gradlew run`.
 
 Enable engine trace logging with: `-Dmidituutti.engine.trace=true`
+
+Build a jar with: `./gradlew build`
+
+## Running the JAR
+You need to have JDK 11 and OpenJFX installed. Run with:
+```
+# Example for Ubuntu 18.04
+java \
+  --module-path /usr/share/openjfx/lib \
+  --add-modules=javafx.base,javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.swing,javafx.web \
+  -jar ./app/build/libs/midi-tuutti.jar
+```
