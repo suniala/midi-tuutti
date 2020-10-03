@@ -580,13 +580,15 @@ class RootView : View("Midi-Tuutti") {
             PlayerView::rootFontSize to rootFontSize,
             PlayerView::playerController to playerController))
 
+    private var lastDir: File? = System.getProperty("midituutti.initialDir")?.let { File(it) }
+
     override val root = borderpane() {
         top = menubar {
             menu("File") {
                 item("Open", "Shortcut+O").action {
                     val fileChooser = FileChooser().apply {
                         title = "Open Midi File"
-                        initialDirectory = System.getProperty("midituutti.initialDir")?.let { File(it) }
+                        initialDirectory = lastDir
                         extensionFilters + listOf(
                                 FileChooser.ExtensionFilter("Midi Files", "*.mid"),
                                 FileChooser.ExtensionFilter("All Files", "*.*")
@@ -594,6 +596,7 @@ class RootView : View("Midi-Tuutti") {
                     }
                     val selectedFile = fileChooser.showOpenDialog(primaryStage)
                     if (selectedFile != null) {
+                        lastDir = selectedFile.parentFile
                         playerController.openFile(selectedFile)
                     }
                 }
