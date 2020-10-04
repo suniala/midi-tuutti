@@ -4,7 +4,7 @@ import midituutti.engine.createSingeNoteHitEngine
 import midituutti.midi.Note
 import midituutti.midi.OnOff
 
-fun main(args: Array<String>) {
+fun main() {
     val engine = createSingeNoteHitEngine()
     print("Press enter to hit.")
     readLine()
