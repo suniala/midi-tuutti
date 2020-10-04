@@ -62,8 +62,8 @@ object EngineTraceLogger {
         if (flushJob?.isActive == true && traceEnabled) {
             val eventTs = playStartMark.elapsedNow()
             val actualDeltaTs = previous?.let { p -> eventTs - p.timestamp }
-            val expectedDeltaTs = if (previous != null && expectedDeltaTs != null) expectedDeltaTs else null
-            val logMessage = LogMessage(ticks, eventTs, actualDeltaTs, expectedDeltaTs,
+            val expectedDeltaTsFromPrevious = if (previous != null) expectedDeltaTs else null
+            val logMessage = LogMessage(ticks, eventTs, actualDeltaTs, expectedDeltaTsFromPrevious,
                     expectedTimestampTs, midiMessage, currentMeasure)
             queue.put(logMessage)
             previous = logMessage
