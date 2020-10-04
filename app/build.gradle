@@ -1,32 +1,32 @@
 plugins {
-    id 'application'
-    id 'org.openjfx.javafxplugin' version '0.0.8'
+    id "application"
+    id "org.openjfx.javafxplugin" version "0.0.8"
 }
 
-mainClassName = 'midituutti.MidiTuuttiKt'
+mainClassName = "midituutti.MidiTuuttiKt"
 
-defaultTasks 'run'
+defaultTasks "run"
 
 javafx {
     version = "11.0.2"
-    modules = ['javafx.controls', 'javafx.graphics']
+    modules = ["javafx.controls", "javafx.graphics"]
 }
 
 dependencies {
-    compile project(':engine')
-    compile 'no.tornado:tornadofx:2.0.0-SNAPSHOT'
+    compile project(":engine")
+    compile "no.tornado:tornadofx:2.0.0-SNAPSHOT"
 }
 
 jar {
-    archivesBaseName = 'midi-tuutti'
-    manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
+    archivesBaseName = "midi-tuutti"
+    manifest { attributes "Main-Class": "midituutti.MidiTuuttiKt" }
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
 }
 
 run {
     doFirst {
         jvmArgs = [
-                '--module-path', classpath.asPath,
+                "--module-path", classpath.asPath,
                 "--add-modules=javafx.base,javafx.controls,javafx.graphics"
         ]
     }
