@@ -22,3 +22,12 @@ jar {
     manifest { attributes 'Main-Class': 'midituutti.MidiTuuttiKt' }
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
 }
+
+run {
+    doFirst {
+        jvmArgs = [
+                '--module-path', classpath.asPath,
+                "--add-modules=javafx.base,javafx.controls,javafx.graphics"
+        ]
+    }
+}

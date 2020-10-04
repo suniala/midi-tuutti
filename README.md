@@ -55,6 +55,6 @@ You need to have JDK 11 and OpenJFX installed. Run with:
 # Example for Ubuntu 18.04
 java \
   --module-path /usr/share/openjfx/lib \
-  --add-modules=javafx.base,javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.swing,javafx.web \
+  --add-modules=javafx.base,javafx.controls,javafx.graphics \
   -jar ./app/build/libs/midi-tuutti.jar
 ```
