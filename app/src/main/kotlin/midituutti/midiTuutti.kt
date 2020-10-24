@@ -2,7 +2,6 @@ package midituutti
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -29,7 +28,6 @@ import midituutti.engine.Player
 import midituutti.engine.SongStructure
 import midituutti.engine.TempoEvent
 import midituutti.midi.Tempo
-import midituutti.midi.TimeSignature
 import tornadofx.*
 import java.io.File
 import kotlin.math.roundToInt
@@ -38,7 +36,6 @@ import kotlin.time.ExperimentalTime
 val drumTrack = MidiTrack(10)
 
 class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
-class LoadEvent(val song: SongStructure) : FXEvent()
 
 enum class TempoMode {
     CONSTANT, MULTIPLIER
@@ -52,10 +49,14 @@ enum class TempoAdjustment {
 class PlayerController : Controller() {
     private var player: Player? = null
 
-    fun openFile(file: File) {
+    private var song: SongStructure? = null
+
+    fun load(file: File) {
+        val playerInitialState = createPlayer(file.absolutePath, null, null)
+
         player?.quit()
-        val playerState = createPlayer(file.absolutePath, null, null)
-        player = playerState.player
+        player = playerInitialState.player
+
         // Pass events from the player thread to the ui thread via TornadoFX EventBus
         player().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
 
@@ -64,7 +65,7 @@ class PlayerController : Controller() {
         player().mute(ClickTrack)
         player().unMute(drumTrack)
 
-        fire(LoadEvent(playerState.song))
+        song = playerInitialState.song
     }
 
     fun togglePlay() {
@@ -93,28 +94,39 @@ class PlayerController : Controller() {
     }
 
     fun setTempoModifier(f: (Tempo) -> Tempo) = player().setTempoModifier(f)
+
+    fun song(): SongStructure {
+        return song ?: throw IllegalStateException()
+    }
 }
 
+/**
+ * Our player component is a fragment as we want to create a new instance for each file as
+ * this makes initialisation easier.
+ */
 @ExperimentalTime
-class PlayerView : View("Player") {
+class PlayerFragment : Fragment("Player") {
     val rootFontSize: DoubleProperty by param()
     val playerController: PlayerController by param()
 
-    private val measureRange = SimpleObjectProperty<Pair<Int, Int>>()
+    private val song = SimpleObjectProperty(playerController.song())
+
     private val measureRangeChanging = SimpleBooleanProperty(false)
-    private var measureRangeBounds: ObjectProperty<Pair<Int, Int>> by singleAssign()
+    private var measureRangeBounds = SimpleObjectProperty(Pair(1, song.value.measures.size))
+    private val measureRange = SimpleObjectProperty(Pair(1, song.value.measures.size))
+
+    //    private val measureRange = SimpleObjectProperty(measureRangeBounds.value)
     private var measureRangeBlink: BooleanProperty by singleAssign()
 
     private var playButton: ToggleButton by singleAssign()
     private var clickButton: ToggleButton by singleAssign()
     private var drumMuteButton: ToggleButton by singleAssign()
-    private val songTempo = SimpleObjectProperty<Tempo?>()
+    private val songTempo = SimpleObjectProperty(song.value.measures.first().initialTempo)
     private val tempoMultiplier = SimpleObjectProperty(1.0)
-    private val constantTempo = SimpleObjectProperty(Tempo(120.0))
-    private val adjustedTempo = SimpleObjectProperty<Tempo?>()
-    private val currentMeasure = SimpleObjectProperty<Int?>()
-    private val currentTimeSignature = SimpleObjectProperty<TimeSignature?>()
-    private val song = SimpleObjectProperty<SongStructure?>()
+    private val constantTempo = SimpleObjectProperty(songTempo.value)
+    private val adjustedTempo = SimpleObjectProperty(songTempo.value)
+    private val currentMeasure = SimpleObjectProperty(1)
+    private val currentTimeSignature = SimpleObjectProperty(song.value.measures.first().timeSignature)
     private val tempoModeGroup = ToggleGroup()
     private val tempoMode = tempoModeGroup.selectedValueProperty<TempoMode>()
 
@@ -141,9 +153,6 @@ class PlayerView : View("Player") {
     }
 
     override val root = vbox {
-        // Disable until a file is opened.
-        isDisable = true
-
         style(rootFontSize) { prop(padding, Style.padRemCommon) }
 
         vbox {
@@ -163,8 +172,8 @@ class PlayerView : View("Player") {
                         label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
-                            textProperty().bind(currentMeasure.stringBinding { v ->
-                                (v ?: 1).let { m -> "$m".padStart(3, ' ') }
+                            textProperty().bind(currentMeasure.stringBinding { m ->
+                                "$m".padStart(3, ' ')
                             })
                         }
                     }
@@ -181,9 +190,7 @@ class PlayerView : View("Player") {
                             label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                                textProperty().bind(measureRange.stringBinding { v ->
-                                    (v ?: Pair("?", "?")).let { (s, e) -> "$s ‒ $e" }
-                                })
+                                textProperty().bind(measureRange.nonNullStringBinding { (s, e) -> "$s ‒ $e" })
                                 measureRangeBlink = nodeBlinker(this, Style.blink)
                                 measureRangeBlink.bind(measureRangeChanging)
                             }
@@ -199,10 +206,8 @@ class PlayerView : View("Player") {
                             label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                                textProperty().bind(song.stringBinding { s ->
-                                    s?.let {
-                                        s.measures.size.let { c -> "$c".padStart(3, ' ') }
-                                    }
+                                textProperty().bind(song.nonNullStringBinding { s ->
+                                    s.measures.size.let { c -> "$c".padStart(3, ' ') }
                                 })
                             }
                         }
@@ -234,9 +239,7 @@ class PlayerView : View("Player") {
                                 useMaxWidth = true
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
-                                textProperty().bind(currentTimeSignature.stringBinding { ts ->
-                                    ts?.beats?.toString() ?: ""
-                                })
+                                textProperty().bind(currentTimeSignature.nonNullStringBinding { it.beats.toString() })
                             }
                             spacer()
                         }
@@ -249,9 +252,7 @@ class PlayerView : View("Player") {
                                 useMaxWidth = true
                                 addClass(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
-                                textProperty().bind(currentTimeSignature.stringBinding { ts ->
-                                    ts?.unit?.toString() ?: ""
-                                })
+                                textProperty().bind(currentTimeSignature.nonNullStringBinding { it.unit.toString() })
                             }
                             spacer()
                         }
@@ -270,14 +271,10 @@ class PlayerView : View("Player") {
                         label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                            textProperty().bind(currentMeasure.stringBinding { m ->
-                                m?.let {
-                                    song.value?.let { s ->
-                                        run {
-                                            val next = s.measures.getOrElse(m) { s.measures.first() }
-                                            "${next.timeSignature.beats}/${next.timeSignature.unit}"
-                                        }
-                                    }
+                            textProperty().bind(currentMeasure.nonNullStringBinding { m ->
+                                song.value.let { s ->
+                                    val next = s.measures.getOrElse(m) { s.measures.first() }
+                                    "${next.timeSignature.beats}/${next.timeSignature.unit}"
                                 }
                             })
                         }
@@ -303,8 +300,8 @@ class PlayerView : View("Player") {
                         label {
                             addClass(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
-                            textProperty().bind(adjustedTempo.stringBinding { t ->
-                                t?.bpm?.roundToInt()?.toString()?.padStart(3, ' ') ?: "---"
+                            textProperty().bind(adjustedTempo.nonNullStringBinding { t ->
+                                t.bpm.roundToInt().toString().padStart(3, ' ')
                             })
                         }
                     }
@@ -321,9 +318,7 @@ class PlayerView : View("Player") {
                             label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                                textProperty().bind(tempoMultiplier.stringBinding { v ->
-                                    (v as Double).let { m -> "${(m * 100).roundToInt()} %" }
-                                })
+                                textProperty().bind(tempoMultiplier.nonNullStringBinding { "${(it * 100).roundToInt()} %" })
                             }
                         }
                         vbox {
@@ -337,8 +332,8 @@ class PlayerView : View("Player") {
                             label {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
-                                textProperty().bind(songTempo.stringBinding { t ->
-                                    t?.bpm?.roundToInt()?.toString()?.plus(" bpm") ?: "---"
+                                textProperty().bind(songTempo.nonNullStringBinding { t ->
+                                    t.bpm.roundToInt().toString().plus(" bpm")
                                 })
                             }
                         }
@@ -502,9 +497,12 @@ class PlayerView : View("Player") {
                 }
 
                 measureRangeControl(rootFontSize).run {
+                    valueProperty().value = measureRange.value
                     measureRange.bindBidirectional(valueProperty())
                     measureRangeChanging.bind(valueChangingProperty())
-                    measureRangeBounds = boundsProperty()
+                    val boundsProperty = boundsProperty()
+                    boundsProperty.value = measureRangeBounds.value
+                    measureRangeBounds.bindBidirectional(boundsProperty)
                 }
             }
 
@@ -540,21 +538,6 @@ class PlayerView : View("Player") {
             }
         }
 
-        subscribe<LoadEvent> { event ->
-            run {
-                tempoMode.value = TempoMode.MULTIPLIER
-
-                measureRangeBounds.value = Pair(1, event.song.measures.size)
-                measureRange.value = measureRangeBounds.value
-
-                song.value = event.song
-                currentTimeSignature.value = event.song.measures.first().timeSignature
-                currentMeasure.value = 1
-
-                isDisable = false
-            }
-        }
-
         tempoMultiplier.onChange { multiplier ->
             updateTempoModifier(tempoMode.value, multiplier as Double, constantTempo.value)
         }
@@ -570,17 +553,28 @@ class PlayerView : View("Player") {
     }
 }
 
+class StartView : View("Start") {
+    override val root = borderpane {
+        center = label("Please open a midi file")
+    }
+}
+
 @ExperimentalTime
 class RootView : View("Midi-Tuutti") {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
 
+    private val rootViewController = find<RootViewController>()
+
     private val playerController = tornadofx.find(PlayerController::class)
 
-    private val playerView = find<PlayerView>(mapOf(
-            PlayerView::rootFontSize to rootFontSize,
-            PlayerView::playerController to playerController))
+    private val initialView =
+            if (rootViewController.initialFile.value != null) {
+                params
+                playerController.load(rootViewController.initialFile.value)
+                newPlayerFragment()
+            } else find<StartView>()
 
-    private var lastDir: File? = System.getProperty("midituutti.initialDir")?.let { File(it) }
+    private var currentView: UIComponent = initialView
 
     override val root = borderpane {
         top = menubar {
@@ -588,7 +582,7 @@ class RootView : View("Midi-Tuutti") {
                 item("Open", "Shortcut+O").action {
                     val fileChooser = FileChooser().apply {
                         title = "Open Midi File"
-                        initialDirectory = lastDir
+                        initialDirectory = rootViewController.lastDir.value
                         extensionFilters + listOf(
                                 FileChooser.ExtensionFilter("Midi Files", "*.mid"),
                                 FileChooser.ExtensionFilter("All Files", "*.*")
@@ -596,8 +590,12 @@ class RootView : View("Midi-Tuutti") {
                     }
                     val selectedFile = fileChooser.showOpenDialog(primaryStage)
                     if (selectedFile != null) {
-                        lastDir = selectedFile.parentFile
-                        playerController.openFile(selectedFile)
+                        rootViewController.lastDir.value = selectedFile.parentFile
+                        playerController.load(selectedFile)
+
+                        val playerFragment = newPlayerFragment()
+                        currentView.replaceWith(playerFragment)
+                        currentView = playerFragment
                     }
                 }
                 separator()
@@ -605,10 +603,21 @@ class RootView : View("Midi-Tuutti") {
             }
         }
 
-        bottom = playerView.root
+        bottom = initialView.root
 
         shortcut("F11") { primaryStage.isFullScreen = true }
     }
+
+    private fun newPlayerFragment(): PlayerFragment =
+            find(
+                    PlayerFragment::rootFontSize to rootFontSize,
+                    PlayerFragment::playerController to playerController)
+
+}
+
+class RootViewController : Controller() {
+    val lastDir = SimpleObjectProperty<File>()
+    val initialFile = SimpleObjectProperty<File>()
 }
 
 @ExperimentalTime
@@ -621,20 +630,20 @@ class MidiTuuttiApp : App() {
     override fun start(stage: Stage) {
         PlaybackEngine.initialize()
 
+        val rootViewController = find<RootViewController>()
+        rootViewController.lastDir.value = System.getProperty("midituutti.initialDir")?.let { File(it) }
+        rootViewController.initialFile.value = parameters.raw.firstOrNull()?.let { path ->
+            val file = File(path)
+            if (file.exists() && file.isFile && file.canRead()) file
+            else null
+        }
+
         with(stage) {
             super.start(this)
             importStylesheet(Style::class)
 
-            val view = find(RootView::class)
+            val view = find<RootView>()
             view.rootFontSize.bind(scene.heightProperty().divide(22))
-
-            parameters.raw.firstOrNull()?.let { path ->
-                val file = File(path)
-                if (file.exists() && file.isFile && file.canRead()) {
-                    val playerController = find(PlayerController::class)
-                    playerController.openFile(file)
-                }
-            }
 
             // Set dimensions after view has been initialized so as to make view contents scale according to
             // window dimensions.

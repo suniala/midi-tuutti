@@ -3,7 +3,9 @@ package midituutti
 import javafx.animation.Animation
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
+import javafx.beans.Observable
 import javafx.beans.binding.Bindings
+import javafx.beans.binding.StringBinding
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -15,6 +17,9 @@ import javafx.scene.Node
 import javafx.scene.control.ToggleButton
 import javafx.scene.input.MouseEvent
 import tornadofx.*
+
+fun <T> ObservableValue<T>.nonNullStringBinding(vararg dependencies: Observable, op: (T) -> String): StringBinding =
+        Bindings.createStringBinding({ op(value) }, this, *dependencies)
 
 interface BidirectionalBridge {
     fun leftSideObservables(): Collection<ObservableValue<*>>
@@ -46,8 +51,8 @@ fun bindBidirectional(bridge: BidirectionalBridge) {
 fun nodeBlinker(node: Node, blinkPseudoClass: CssRule): BooleanProperty {
     val javaFxPseudoClass = PseudoClass.getPseudoClass(blinkPseudoClass.name)
     val timeline = Timeline(
-            KeyFrame(0.5.seconds, EventHandler { node.pseudoClassStateChanged(javaFxPseudoClass, true) }),
-            KeyFrame(1.0.seconds, EventHandler { node.pseudoClassStateChanged(javaFxPseudoClass, false) })
+            KeyFrame(0.5.seconds, { node.pseudoClassStateChanged(javaFxPseudoClass, true) }),
+            KeyFrame(1.0.seconds, { node.pseudoClassStateChanged(javaFxPseudoClass, false) })
     )
     timeline.cycleCount = Animation.INDEFINITE
 
