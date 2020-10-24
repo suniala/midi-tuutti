@@ -94,22 +94,6 @@ interface Player {
     fun resetMeasureRange(start: Int, end: Int)
 }
 
-interface SingleNoteHitEngine {
-    fun sendNote(note: Note)
-
-    fun quit()
-}
-
-fun createSingeNoteHitEngine(): SingleNoteHitEngine {
-    val synthesizerPort = createDefaultSynthesizerPort()
-
-    return object : SingleNoteHitEngine {
-        override fun sendNote(note: Note): Unit = synthesizerPort.send(NoteMessage.fromNote(Tick(1), note))
-
-        override fun quit(): Unit = synthesizerPort.panic()
-    }
-}
-
 private interface PlayerListener {
     fun tempoChanged()
     fun atMeasureStart(measure: Int, timeSignature: TimeSignature)
