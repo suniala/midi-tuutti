@@ -33,7 +33,6 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 [Java Sound API: Soundbanks](https://www.oracle.com/technetwork/java/soundbanks-135798.html) for details.
 
 ## Ideas
-* Remember last file chooser directory
 * Remember last n files
 * Select click sounds
 * Mixer, maybe just a volume slider for each channel
