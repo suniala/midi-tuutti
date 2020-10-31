@@ -9,6 +9,9 @@ A midi player for playing backing tracks while practicing.
 * Tempo multiplier (adjust song tempo by a multiplier)
 * Constant tempo (override song's tempo)
 * Jump to next/prev measure
+* Remember latest program (instrument) changes, pan, pitch and other channel specific adjustments at 
+  the beginning of each measure. Meaning: even if you skip measures, these adjustments are not
+  skipped.
 * Mute drums (channel 10)
 * Click
 * Repeat infinitely
@@ -36,7 +39,6 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 * Remember last n files
 * Select click sounds
 * Mixer, maybe just a volume slider for each channel
-* Keep track of instrument changes and reset instruments when jumping between measures
 * Play click for one/two measures before playback
 * Skip empty measures (ones without any notes) at the beginning of a song
 

@@ -1,9 +1,12 @@
 package midituutti.midi
 
+import fi.kapsi.kosmik.javamididecoder.DescribingMidiShortMVisitor
 import fi.kapsi.kosmik.javamididecoder.MidiDecoder
 import fi.kapsi.kosmik.javamididecoder.MidiM
 import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTempoM
 import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTimeSignatureM
+import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiChannelM
+import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiControlChangeM
 import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiNoteM
 import java.io.File
 import java.io.InputStream
@@ -85,6 +88,25 @@ class NoteMessage(ticks: Tick, private val original: MidiNoteM) : MidiMessage(ti
     }
 }
 
+/**
+ * A channel specific message, excluding NoteMessage, that adjusts channel characteristics such as program or pan.
+ */
+class ChannelAdjustmentMessage(ticks: Tick, val original: MidiChannelM) : MidiMessage(ticks) {
+    private val describer = DescribingMidiShortMVisitor()
+
+    override fun toJava(): JavaMidiMessage = original.rawMessage
+
+    override fun toString(): String = "${original.javaClass.simpleName}(ticks=${ticks()}, original=\"${original.accept(describer)}\""
+
+    /**
+     * An "identifier" that provides us with simple means for making distinction between different event types.
+     */
+    fun typeId(): String = original.javaClass.simpleName + when (original) {
+        is MidiControlChangeM -> "${original.controlChange}"
+        else -> ""
+    }
+}
+
 class TempoMessage(ticks: Tick, private val original: MidiTempoM) : MidiMessage(ticks) {
     override fun toJava(): JavaMidiMessage = original.rawMessage
 
@@ -127,7 +149,10 @@ class MidiFile(private val seq: MidiSequence) {
                             val ticks = Tick(message.tick)
                             val dm = MidiDecoder.decodeMessage(message.message)
                             yield(when (dm) {
-                                is MidiNoteM -> NoteMessage(ticks, dm)
+                                is MidiChannelM -> when (dm) {
+                                    is MidiNoteM -> NoteMessage(ticks, dm)
+                                    else -> ChannelAdjustmentMessage(ticks, dm)
+                                }
                                 is MidiTempoM -> TempoMessage(ticks, dm)
                                 is MidiTimeSignatureM -> TimeSignatureMessage(ticks, dm)
                                 else -> UnspecifiedMessage(ticks, dm)
