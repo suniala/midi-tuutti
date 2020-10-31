@@ -37,6 +37,8 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 * Select click sounds
 * Mixer, maybe just a volume slider for each channel
 * Keep track of instrument changes and reset instruments when jumping between measures
+* Play click for one/two measures before playback
+* Skip empty measures (ones without any notes) at the beginning of a song
 
 ## Development
 Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/), 
