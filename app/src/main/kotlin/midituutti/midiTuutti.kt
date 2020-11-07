@@ -28,7 +28,7 @@ class RootView : View("Midi-Tuutti") {
             if (rootViewController.initialFile.value != null) {
                 params
                 playerController.load(rootViewController.initialFile.value)
-                newPlayerFragment()
+                newTabs()
             } else find<StartView>()
 
     private var currentView: UIComponent = initialView
@@ -50,9 +50,9 @@ class RootView : View("Midi-Tuutti") {
                         rootViewController.lastDir.value = selectedFile.parentFile
                         playerController.load(selectedFile)
 
-                        val playerFragment = newPlayerFragment()
-                        currentView.replaceWith(playerFragment)
-                        currentView = playerFragment
+                        val tabsFragment = newTabs()
+                        currentView.replaceWith(tabsFragment)
+                        currentView = tabsFragment
                     }
                 }
                 separator()
@@ -65,10 +65,10 @@ class RootView : View("Midi-Tuutti") {
         shortcut("F11") { primaryStage.isFullScreen = true }
     }
 
-    private fun newPlayerFragment(): PlayerFragment =
+    private fun newTabs(): TabsFragment =
             find(
-                    PlayerFragment::rootFontSize to rootFontSize,
-                    PlayerFragment::playerController to playerController)
+                    TabsFragment::rootFontSize to rootFontSize,
+                    TabsFragment::playerController to playerController)
 
 }
 

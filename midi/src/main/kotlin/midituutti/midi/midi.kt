@@ -66,7 +66,7 @@ sealed class MidiMessage(private val ticks: Tick) {
     abstract fun toJava(): JavaMidiMessage
 }
 
-class NoteMessage(ticks: Tick, private val original: MidiNoteM) : MidiMessage(ticks) {
+class NoteMessage(ticks: Tick, val original: MidiNoteM) : MidiMessage(ticks) {
     override fun toJava(): JavaMidiMessage = original.rawMessage
 
     fun note(): Note = Note(if (original.isOn) OnOff.On else OnOff.Off,

@@ -12,6 +12,7 @@ import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
 import midituutti.midi.createDefaultSynthesizerPort
 import midituutti.midi.openFile
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
@@ -56,9 +57,9 @@ data class ClickEvent(private val ticks: Tick, val click: ClickType) : EngineEve
     override fun ticks(): Tick = ticks
 }
 
-interface EngineTrack
-
-data class MidiTrack(val channel: Int) : EngineTrack
+sealed class EngineTrack
+data class MidiTrack(val channel: Int) : EngineTrack()
+object ClickTrack : EngineTrack()
 
 sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()
@@ -68,9 +69,13 @@ data class TempoEvent(val tempo: Tempo, val adjustedTempo: Tempo) : PlaybackEven
 
 typealias PlaybackListener = (PlaybackEvent) -> Unit
 
-object ClickTrack : EngineTrack
+data class MixerChannel(val track: EngineTrack, val volumeAdjustment: Double, val muted: Boolean, val solo: Boolean)
 
 interface Player {
+    val song: SongStructure
+
+    fun updateMixer(state: Map<EngineTrack, Double>)
+
     fun isPlaying(): Boolean
 
     fun play()
@@ -127,6 +132,14 @@ private class MidiPlayer(val song: SongStructure,
     private var start: Int = 1
 
     private var end: Int? = null
+
+    private var mixerState: Map<EngineTrack, Double> = ((1..16).map { MidiTrack(it) } + ClickTrack)
+            .map {
+                Pair(it, 1.0)
+            }
+            .toMap()
+
+    private var gains: Map<EngineTrack, Double> = mapOf()
 
     fun mute(track: EngineTrack) {
         mutedTracks.add(track)
@@ -231,7 +244,20 @@ private class MidiPlayer(val song: SongStructure,
                 }
         }
         if (midiMessage != null) {
-            synthesizerPort.send(midiMessage)
+            // Some midi programs use a "note on" message with velocity 0 instead of "note off" messages. Let's not
+            // adjust the volume of such velocity 0 notes.
+            if (midiMessage is NoteMessage && midiMessage.note().onOff == OnOff.On && midiMessage.note().velocity > 0) {
+                val track = when (event) {
+                    is MessageEvent -> MidiTrack(midiMessage.note().channel)
+                    is ClickEvent -> ClickTrack
+                }
+                synthesizerPort.send(NoteMessage.fromNote(
+                        midiMessage.ticks(),
+                        midiMessage.note().copy(velocity = (midiMessage.note().velocity * mixerState.getOrDefault(track, 1.0)).roundToInt())))
+            } else {
+                // Let other messages pass as is.
+                synthesizerPort.send(midiMessage)
+            }
         }
 
         return midiMessage
@@ -275,11 +301,25 @@ private class MidiPlayer(val song: SongStructure,
             }
         }
     }
+
+    fun updateMixer(state: Map<EngineTrack, Double>) {
+        mixerState = mixerState.entries
+                .map { e ->
+                    Pair(e.key, state.getOrDefault(e.key, e.value))
+                }
+                .toMap()
+    }
 }
 
 @ExperimentalTime
 private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener {
     private val playbackListeners = mutableSetOf<PlaybackListener>()
+
+    override val song: SongStructure = midiPlayer.song
+
+    override fun updateMixer(state: Map<EngineTrack, Double>) {
+        midiPlayer.updateMixer(state)
+    }
 
     override fun isPlaying(): Boolean = midiPlayer.isPlaying()
 
@@ -353,7 +393,7 @@ private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener
     private fun notify(event: PlaybackEvent) = playbackListeners.forEach { pl -> pl(event) }
 }
 
-data class PlayerInitialState(val player: Player, val song: SongStructure)
+data class PlayerInitialState(val player: Player)
 
 fun noOpTempoModifier(tempo: Tempo) = tempo
 
@@ -376,6 +416,6 @@ object PlaybackEngine {
         val playerControl = PlayerControl(midiPlayer)
         midiPlayer.addPlayerListener(playerControl)
 
-        return PlayerInitialState(playerControl, song)
+        return PlayerInitialState(playerControl)
     }
 }

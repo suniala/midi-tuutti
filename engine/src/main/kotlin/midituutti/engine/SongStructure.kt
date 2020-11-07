@@ -3,6 +3,7 @@ package midituutti.engine
 import midituutti.midi.ChannelAdjustmentMessage
 import midituutti.midi.MidiFile
 import midituutti.midi.MidiMessage
+import midituutti.midi.NoteMessage
 import midituutti.midi.Tempo
 import midituutti.midi.TempoMessage
 import midituutti.midi.Tick
@@ -43,6 +44,18 @@ data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSign
 }
 
 class SongStructure(val measures: List<Measure>) {
+    val tracks: Set<EngineTrack> = measures.flatMap { m ->
+        m.events.mapNotNull { e ->
+            when (e) {
+                is MessageEvent -> when (e.message) {
+                    is NoteMessage -> MidiTrack(e.message.note().channel)
+                    else -> null
+                }
+                is ClickEvent -> ClickTrack
+            }
+        }
+    }.toSet()
+
     companion object {
         fun of(midiFile: MidiFile): SongStructure = SongStructure(measures(midiFile))
 
