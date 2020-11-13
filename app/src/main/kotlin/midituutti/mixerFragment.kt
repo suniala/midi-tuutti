@@ -58,13 +58,17 @@ private fun EventTarget.mixerSlider(rootFontSize: DoubleProperty,
     vbox {
         isDisable = !enabled
         alignment = Pos.CENTER
-        style(rootFontSize) { prop(spacing, 0.2) }
+        style(rootFontSize) {
+            prop(spacing, 0.2)
+            prop(padding,
+                    fun(rem: (Double) -> String): String = "${rem(0.1)} ${rem(0.1)} ${rem(0.4)} ${rem(0.1)}")
+        }
 
         label(when (track) {
             is MidiTrack -> "${track.channel}"
             is ClickTrack -> "C"
         }) {
-            style(rootFontSize) { prop(fontSize, 0.8) }
+            style(rootFontSize) { prop(fontSize, 0.5) }
         }
 
         solo = nonFocusableToggleButton("S") {
@@ -105,7 +109,7 @@ class MixerFragment : Fragment("Mixer") {
 
     override val root = hbox {
         style(rootFontSize) {
-            prop(spacing, Style.spacingRemCommon)
+            prop(padding, Style.padRemCommon)
         }
 
         supportedTracks.forEach { t ->
@@ -125,6 +129,8 @@ class MixerFragment : Fragment("Mixer") {
                     playerController.updateMixerChannel(t) { mc -> mc.copy(muted = it) }
                 }
             }
+
+            spacer()
         }
     }
 }

@@ -288,17 +288,18 @@ class PlayerFragment : Fragment("Player") {
                             style(rootFontSize) { prop(fontSize, Style.fontRemControlTitle) }
                         }
 
-                        playButton = nonFocusableToggleButton("Play") {
-                            useMaxWidth = true
-                            style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                            shortcut("Space") { fire() }
-                            action {
-                                playerController.togglePlay()
-                            }
-                        }
-
                         hbox {
                             style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+
+                            playButton = nonFocusableToggleButton("Play") {
+                                useMaxWidth = true
+                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
+                                shortcut("Space") { fire() }
+                                action {
+                                    playerController.togglePlay()
+                                }
+                            }
+
                             nonFocusableButton("<<") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                 shortcut("Home")
@@ -349,10 +350,7 @@ class PlayerFragment : Fragment("Player") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                     addEventFilter(MouseEvent.ANY, preventDeselect())
                                 }
-                            }
 
-                            hbox {
-                                style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
                                 nonFocusableButton("‒") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                     shortcut("Down")

@@ -24,7 +24,7 @@ class Style : Stylesheet() {
         const val fontRemDisplayTimeSignature = 2.8
         const val fontRemDisplaySub = 0.8
         const val widthTimeSigHead = 5.0 * fontRemDisplaySub
-        const val fontRemControlTitle = 0.8
+        const val fontRemControlTitle = 0.6
         const val fontRemControlButton = 0.8
         const val fontRemControlSliderButton = 0.5
         const val padRemCommon = 0.5

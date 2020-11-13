@@ -3,8 +3,6 @@ package midituutti
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine
@@ -83,8 +81,8 @@ class RootViewController : Controller() {
 class MidiTuuttiApp : App() {
     override val primaryView = RootView::class
 
-    private val preferredHeight = 400.0
-    private val preferredWidth = preferredHeight * 1.4
+    private val preferredHeight = 440.0
+    private val preferredWidth = preferredHeight * 1.6
 
     override fun start(stage: Stage) {
         PlaybackEngine.initialize()
@@ -102,7 +100,7 @@ class MidiTuuttiApp : App() {
             importStylesheet(Style::class)
 
             val view = find<RootView>()
-            view.rootFontSize.bind(scene.heightProperty().divide(22))
+            view.rootFontSize.bind(scene.heightProperty().divide(19.0))
 
             // Set dimensions after view has been initialized so as to make view contents scale according to
             // window dimensions.
