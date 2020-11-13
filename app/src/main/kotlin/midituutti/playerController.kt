@@ -15,8 +15,6 @@ import kotlin.time.ExperimentalTime
 
 class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
 
-val drumTrack = MidiTrack(10)
-
 @ExperimentalTime
 class PlayerController : Controller() {
     private var player: Player? = null
@@ -38,27 +36,12 @@ class PlayerController : Controller() {
         // Pass events from the player thread to the ui thread via TornadoFX EventBus
         player().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
 
-        // Propagating current button positions to the new player instance is a bit difficult so let's just
-        // reset everything.
-        player().mute(ClickTrack)
-        player().unMute(drumTrack)
-
         song = playerInitialState.player.song
     }
 
     fun togglePlay() {
         if (player().isPlaying()) player().stop()
         else player().play()
-    }
-
-    fun toggleTrack(track: EngineTrack) {
-        if (player().isMuted(track)) player().unMute((track))
-        else player().mute(track)
-    }
-
-    fun toggleClick() {
-        if (player().isMuted(ClickTrack)) player().unMute(ClickTrack)
-        else player().mute(ClickTrack)
     }
 
     private fun player(): Player {

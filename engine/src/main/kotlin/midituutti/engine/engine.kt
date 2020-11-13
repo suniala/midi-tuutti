@@ -24,23 +24,6 @@ fun Duration.millisPart(): Long = this.toLongMilliseconds()
 @ExperimentalTime
 fun Duration.nanosPart(): Int = (this.toLongNanoseconds() - (this.millisPart() * 1000 * 1000)).toInt()
 
-private fun muteOrPass(mutedTracks: Set<EngineTrack>, message: MidiMessage): MidiMessage =
-        when (message) {
-            is NoteMessage -> {
-                if (mutedTracks.any { t: EngineTrack ->
-                            when (t) {
-                                is MidiTrack -> t.channel == message.note().channel
-                                else -> false
-                            }
-                        }) {
-                    NoteMessage.fromNote(message.ticks(), message.note().copy(velocity = 0))
-                } else {
-                    message
-                }
-            }
-            else -> message
-        }
-
 sealed class EngineEvent {
     abstract fun ticks(): Tick
 }
@@ -63,7 +46,6 @@ object ClickTrack : EngineTrack()
 
 sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()
-data class MutePlaybackEvent(val track: EngineTrack, val muted: Boolean) : PlaybackEvent()
 data class MeasurePlaybackEvent(val measure: Int, val timeSignature: TimeSignature) : PlaybackEvent()
 data class TempoEvent(val tempo: Tempo, val adjustedTempo: Tempo) : PlaybackEvent()
 
@@ -83,12 +65,6 @@ interface Player {
     fun stop()
 
     fun quit()
-
-    fun mute(track: EngineTrack): Player
-
-    fun unMute(track: EngineTrack): Player
-
-    fun isMuted(track: EngineTrack): Boolean
 
     fun addPlaybackListener(listener: PlaybackListener)
 
@@ -119,8 +95,6 @@ private class MidiPlayer(val song: SongStructure,
         playerListeners.add(playerListener)
     }
 
-    private val mutedTracks = mutableSetOf<EngineTrack>()
-
     private var tempo: Tempo = song.measures.first().initialTempo
 
     private var playing = false
@@ -138,18 +112,6 @@ private class MidiPlayer(val song: SongStructure,
                 Pair(it, 1.0)
             }
             .toMap()
-
-    private var gains: Map<EngineTrack, Double> = mapOf()
-
-    fun mute(track: EngineTrack) {
-        mutedTracks.add(track)
-    }
-
-    fun unMute(track: EngineTrack) {
-        mutedTracks.remove(track)
-    }
-
-    fun isMuted(track: EngineTrack): Boolean = mutedTracks.contains(track)
 
     fun currentTempo(): Tempo = tempo
 
@@ -228,20 +190,14 @@ private class MidiPlayer(val song: SongStructure,
         }
 
         val midiMessage: MidiMessage? = when (event) {
-            is MessageEvent ->
-                muteOrPass(mutedTracks, event.message)
-            is ClickEvent ->
-                if (!mutedTracks.contains(ClickTrack)) {
-                    with(event) {
-                        when (click) {
-                            ClickType.One -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 31, 100))
-                            ClickType.Quarter -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 77, 100))
-                            ClickType.Eight -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 75, 100))
-                        }
-                    }
-                } else {
-                    null
+            is MessageEvent -> event.message
+            is ClickEvent -> with(event) {
+                when (click) {
+                    ClickType.One -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 31, 100))
+                    ClickType.Quarter -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 77, 100))
+                    ClickType.Eight -> NoteMessage.fromNote(ticks(), Note(OnOff.On, 10, 75, 100))
                 }
+            }
         }
         if (midiMessage != null) {
             // Some midi programs use a "note on" message with velocity 0 instead of "note off" messages. Let's not
@@ -344,20 +300,6 @@ private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener
     override fun quit() {
         signalStop()
     }
-
-    override fun mute(track: EngineTrack): Player {
-        midiPlayer.mute(track)
-        notify(MutePlaybackEvent(track, true))
-        return this
-    }
-
-    override fun unMute(track: EngineTrack): Player {
-        midiPlayer.unMute(track)
-        notify(MutePlaybackEvent(track, false))
-        return this
-    }
-
-    override fun isMuted(track: EngineTrack): Boolean = midiPlayer.isMuted(track)
 
     override fun addPlaybackListener(listener: PlaybackListener) {
         playbackListeners.add(listener)

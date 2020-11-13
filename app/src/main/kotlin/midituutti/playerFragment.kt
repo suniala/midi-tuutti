@@ -12,10 +12,7 @@ import javafx.scene.layout.Priority
 import midituutti.components.measureRangeControl
 import midituutti.components.nonFocusableButton
 import midituutti.components.nonFocusableToggleButton
-import midituutti.engine.ClickTrack
 import midituutti.engine.MeasurePlaybackEvent
-import midituutti.engine.MidiTrack
-import midituutti.engine.MutePlaybackEvent
 import midituutti.engine.PlayEvent
 import midituutti.engine.TempoEvent
 import midituutti.midi.Tempo
@@ -50,8 +47,6 @@ class PlayerFragment : Fragment("Player") {
     private var measureRangeBlink: BooleanProperty by singleAssign()
 
     private var playButton: ToggleButton by singleAssign()
-    private var clickButton: ToggleButton by singleAssign()
-    private var drumMuteButton: ToggleButton by singleAssign()
     private val songTempo = SimpleObjectProperty(song.value.measures.first().initialTempo)
     private val tempoMultiplier = SimpleObjectProperty(1.0)
     private val constantTempo = SimpleObjectProperty(songTempo.value)
@@ -313,14 +308,14 @@ class PlayerFragment : Fragment("Player") {
                             }
                             nonFocusableButton("<") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("A")
+                                shortcut("Left")
                                 action {
                                     playerController.jump { m -> m - 1 }
                                 }
                             }
                             nonFocusableButton(">") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("D")
+                                shortcut("Right")
                                 action {
                                     playerController.jump { m -> m + 1 }
                                 }
@@ -328,48 +323,6 @@ class PlayerFragment : Fragment("Player") {
                         }
                     }
 
-                    pane {
-                        addClass(Style.controlSectionSeparator)
-                    }
-
-                    vbox {
-                        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
-
-                        label("Channels") {
-                            style(rootFontSize) { prop(fontSize, Style.fontRemControlTitle) }
-                        }
-
-                        vbox {
-                            style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
-
-                            clickButton = nonFocusableToggleButton("Click off") {
-                                useMaxWidth = true
-                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("C") { fire() }
-                                val stateText = selectedProperty().stringBinding {
-                                    if (it == true) "Click On" else "Click Off"
-                                }
-                                textProperty().bind(stateText)
-                                action {
-                                    playerController.toggleClick()
-                                }
-                            }
-
-                            drumMuteButton = nonFocusableToggleButton("Drums on") {
-                                useMaxWidth = true
-                                isSelected = true
-                                style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("M") { fire() }
-                                val stateText = selectedProperty().stringBinding {
-                                    if (it == false) "Drums Off" else "Drums On"
-                                }
-                                textProperty().bind(stateText)
-                                action {
-                                    playerController.toggleTrack(drumTrack)
-                                }
-                            }
-                        }
-                    }
                     pane {
                         addClass(Style.controlSectionSeparator)
                     }
@@ -402,7 +355,7 @@ class PlayerFragment : Fragment("Player") {
                                 style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
                                 nonFocusableButton("‒") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                    shortcut("S")
+                                    shortcut("Down")
                                     action {
                                         adjustCurrentTempoMode(TempoAdjustment.DECREASE)
                                     }
@@ -417,7 +370,7 @@ class PlayerFragment : Fragment("Player") {
                                 }
                                 nonFocusableButton("+") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                    shortcut("W")
+                                    shortcut("Up")
                                     action {
                                         adjustCurrentTempoMode(TempoAdjustment.INCREASE)
                                     }
@@ -440,7 +393,7 @@ class PlayerFragment : Fragment("Player") {
             spacer()
         }
 
-        shortcut("T") {
+        shortcut("Ctrl+Space") {
             tempoMode.value = when (tempoMode.value as TempoMode) {
                 TempoMode.CONSTANT -> TempoMode.MULTIPLIER
                 TempoMode.MULTIPLIER -> TempoMode.CONSTANT
@@ -451,12 +404,6 @@ class PlayerFragment : Fragment("Player") {
             event.pe.let { playbackEvent ->
                 when (playbackEvent) {
                     is PlayEvent -> playButton.selectedProperty().value = playbackEvent.playing
-                    is MutePlaybackEvent -> when (playbackEvent.track) {
-                        is ClickTrack -> clickButton.selectedProperty().value = !playbackEvent.muted
-                        is MidiTrack -> when ((playbackEvent.track as MidiTrack).channel) {
-                            10 -> drumMuteButton.selectedProperty().value = !playbackEvent.muted
-                        }
-                    }
                     is MeasurePlaybackEvent -> {
                         currentMeasure.value = playbackEvent.measure
                         currentTimeSignature.value = playbackEvent.timeSignature
