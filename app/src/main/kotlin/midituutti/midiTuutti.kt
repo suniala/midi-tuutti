@@ -3,6 +3,8 @@ package midituutti
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine

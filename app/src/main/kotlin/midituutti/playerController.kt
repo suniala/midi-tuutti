@@ -77,13 +77,18 @@ class PlayerController : Controller() {
         return song ?: throw IllegalStateException()
     }
 
-    fun updateMixer(mixerChannel: MixerChannel) {
+    fun updateMixerChannel(track: EngineTrack, update: (MixerChannel) -> MixerChannel) =
+            updateMixer(update(mixerChannelState(track)))
+
+    private fun updateMixer(mixerChannel: MixerChannel) {
         val newMixerState = mixerState.plus(Pair(mixerChannel.track, mixerChannel))
         val maximumVolume = maxOf(1.0, newMixerState.values.map { s -> s.volumeAdjustment }.maxOrNull() ?: 1.0)
+        val someSolo = newMixerState.values.filter { it.solo }.any()
+
         val trackVolumes = newMixerState.values
                 .map { s ->
                     with(s) {
-                        val volume = if (muted) 0.0 else volumeAdjustment / maximumVolume
+                        val volume = if (muted || (someSolo && !solo)) 0.0 else volumeAdjustment / maximumVolume
                         Pair(track, volume)
                     }
                 }
@@ -91,4 +96,6 @@ class PlayerController : Controller() {
         player().updateMixer(trackVolumes)
         mixerState = newMixerState
     }
+
+    private fun mixerChannelState(track: EngineTrack): MixerChannel = mixerState.getValue(track)
 }
