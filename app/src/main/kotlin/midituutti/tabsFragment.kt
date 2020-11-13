@@ -29,12 +29,14 @@ class TabsFragment : Fragment("Tabs") {
         side = Side.LEFT
         tabClosingPolicy = TabPane.TabClosingPolicy.UNAVAILABLE
 
-        tab("Player") {
+        val playerTab = tab("Player") {
             // Is there a smarter way to do this?
             player.root.attachTo(this)
         }
-        tab("Mixer") {
+        val mixerTab = tab("Mixer") {
             mixer.root.attachTo(this)
         }
+
+        shortcut("Tab") { if (playerTab.isSelected) mixerTab.select() else playerTab.select() }
     }
 }
