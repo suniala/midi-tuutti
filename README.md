@@ -47,7 +47,6 @@ better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
 ## Ideas
 * Remember last n files
 * Select click sounds
-* Mixer, maybe just a volume slider for each channel
 * Play click for one/two measures before playback
 * Skip empty measures (ones without any notes) at the beginning of a song
 
