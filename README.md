@@ -4,31 +4,40 @@ A midi player for playing backing tracks while practicing.
 
 ## Current features
 
-![Midi-Tuutti Demo](/midi-tuutti-demo.png)
+![Midi-Tuutti Player](/doc/midi-tuutti-player-demo.png)
 
+![Midi-Tuutti Mixer](/doc/midi-tuutti-mixer-demo.png)
+
+* Mixer (controls note velocities instead of channel volume)
+* Click track that can be muted in the mixer
 * Tempo multiplier (adjust song tempo by a multiplier)
 * Constant tempo (override song's tempo)
 * Jump to next/prev measure
 * Remember latest program (instrument) changes, pan, pitch and other channel specific adjustments at 
   the beginning of each measure. Meaning: even if you skip measures, these adjustments are not
   skipped.
-* Mute drums (channel 10)
-* Click
 * Repeat infinitely
 * Keyboard shortcuts
 * A bit unreliable playback
 
 ## Keyboard Shortcuts
 
-* Play/stop - space
-* Prev/next measure - a, d
-* First measure - home
-* Tempo adjustment or fixed tempo down, up - s, w
-* Switch tempo mode - t
-* Disable/enable click - c
-* Mute/un-mute drums - m
-* Full screen - f11
-* Open file - ctrl+o
+* Play/stop - `space`
+* Prev/next measure - `left`/`right`
+* First measure - `home`
+* Tempo adjustment or fixed tempo up/down -  `up`/`down`
+* Switch tempo mode - `ctrl + space`
+* Switch between player and mixer: `tab`
+* Mixer controls:
+  * Tracks 1-10 - `1`/`Q` to `0`/`P`
+  * Tracks 11-16 + click - `A`/`Z` to `J`/`M`
+  * Example for track 1:
+    * volume up - `1`
+    * volume down - `Q`
+    * toggle solo - `shift + 1`
+    * toggle mute - `shift + Q`
+* Full screen - `f11`
+* Open file - `ctrl + o`
 
 ## Midi Devices
 Currently only the default Java Runtime midi device is supported. You can get
