@@ -57,7 +57,7 @@ class SongStructureTest {
         val expectationsPerMeasureAndChannel = listOf(
                 mapOf(
                         1 to setOf(
-                                matchProgramChange(0),
+                                matchProgramChange(1),
                                 // Not sure what is the correct "human readable" value. Kmidimon shows a value that is
                                 // 8192 units lower than this one, that is -165.
                                 matchPitchWheel(8027),
@@ -67,7 +67,7 @@ class SongStructureTest {
                                 matchControlChange(91, 0)
                         ),
                         2 to setOf(
-                                matchProgramChange(22),
+                                matchProgramChange(23),
                                 matchControlChange(10, 127),
                                 matchControlChange(93, 0),
                                 matchControlChange(7, 100),
@@ -76,7 +76,7 @@ class SongStructureTest {
                 ),
                 mapOf(
                         1 to setOf(
-                                matchProgramChange(0),
+                                matchProgramChange(1),
                                 // Here Kmidimon shows 8191.
                                 matchPitchWheel(16383),
                                 matchControlChange(10, 0),
@@ -85,7 +85,7 @@ class SongStructureTest {
                                 matchControlChange(91, 0)
                         ),
                         2 to setOf(
-                                matchProgramChange(19),
+                                matchProgramChange(20),
                                 matchControlChange(10, 127),
                                 matchControlChange(93, 0),
                                 matchControlChange(7, 100),
@@ -126,7 +126,7 @@ class SongStructureTest {
     private fun matchProgramChange(program: Int) = AdjustmentMatcher(
             "Program change $program",
             fun(m: MessageEvent): Boolean = (m.message as ChannelAdjustmentMessage).original.let {
-                return it is MidiProgramChangeM && it.programChange == program
+                return it is MidiProgramChangeM && it.displayValue == program
             })
 
     @Suppress("SameParameterValue")

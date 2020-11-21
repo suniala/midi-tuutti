@@ -9,6 +9,7 @@ A midi player for playing backing tracks while practicing.
 ![Midi-Tuutti Mixer](/doc/midi-tuutti-mixer-demo.png)
 
 * Mixer (controls note velocities instead of channel volume)
+* For each mixer track, show instruments in a tooltip 
 * Click track that can be muted in the mixer
 * Tempo multiplier (adjust song tempo by a multiplier)
 * Constant tempo (override song's tempo)

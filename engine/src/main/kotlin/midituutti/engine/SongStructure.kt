@@ -1,5 +1,6 @@
 package midituutti.engine
 
+import fi.kapsi.kosmik.javamididecoder.MidiShortM
 import midituutti.midi.ChannelAdjustmentMessage
 import midituutti.midi.MidiFile
 import midituutti.midi.MidiMessage
@@ -55,6 +56,21 @@ class SongStructure(val measures: List<Measure>) {
             }
         }
     }.toSet()
+
+    val trackInstruments: Map<EngineTrack, List<Pair<Int, String>>> = measures
+            .flatMap { m ->
+                m.events.mapNotNull { e ->
+                    if (e is MessageEvent) {
+                        if (e.message is ChannelAdjustmentMessage) e.message.let { msg ->
+                            if (msg.original is MidiShortM.MidiProgramChangeM) (msg.original as MidiShortM.MidiProgramChangeM).let { pc ->
+                                Pair(MidiTrack(pc.channel), Pair(pc.displayValue, pc.gmInstrumentName))
+                            } else null
+                        } else null
+                    } else null
+                }
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { it.value.distinct().sortedBy { p -> p.first } }
 
     companion object {
         fun of(midiFile: MidiFile): SongStructure = SongStructure(measures(midiFile))

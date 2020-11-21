@@ -118,7 +118,13 @@ class MixerFragment : Fragment("Mixer") {
                     track = t,
                     enabled = playerController.song().tracks.contains(t),
                     shortcut = { c, a -> shortcut(c, a) }
-            ).run {
+            ) {
+                tooltip(trackInstruments(t)?.let {
+                    it.joinToString("\n") { p -> if (p.first != null) "${p.first} ${p.second}" else p.second }
+                }) {
+                    showDelay = 50.millis
+                }
+            }.run {
                 volume.onChange { f ->
                     playerController.updateMixerChannel(t) { mc -> mc.copy(volumeAdjustment = f) }
                 }
@@ -132,5 +138,10 @@ class MixerFragment : Fragment("Mixer") {
 
             spacer()
         }
+    }
+
+    private fun trackInstruments(t: EngineTrack) = when (t) {
+        is MidiTrack -> playerController.song().trackInstruments[t]
+        is ClickTrack -> listOf(Pair(null, "Click"))
     }
 }
