@@ -58,6 +58,8 @@ Start with: `./gradlew run`.
 
 Enable engine trace logging with: `-Dmidituutti.engine.trace=true`
 
+TornadoFX layout debugger: `ctrl+shift+d`
+
 Build a jar with: `./gradlew build`
 
 ## Running the JAR

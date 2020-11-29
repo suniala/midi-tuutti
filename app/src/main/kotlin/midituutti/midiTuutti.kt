@@ -3,6 +3,9 @@ package midituutti
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine
@@ -83,6 +86,15 @@ class MidiTuuttiApp : App() {
 
     private val preferredHeight = 440.0
     private val preferredWidth = preferredHeight * 1.6
+
+    init {
+        FX.layoutDebuggerShortcut = KeyCodeCombination(KeyCode.D,
+                KeyCombination.ModifierValue.DOWN,
+                KeyCombination.ModifierValue.DOWN,
+                KeyCombination.ModifierValue.UP,
+                KeyCombination.ModifierValue.UP,
+                KeyCombination.ModifierValue.UP)
+    }
 
     override fun start(stage: Stage) {
         PlaybackEngine.initialize()
