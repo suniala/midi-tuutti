@@ -379,12 +379,13 @@ class PlayerFragment : Fragment("Player") {
                 }
 
                 measureRangeControl(rootFontSize).run {
-                    valueProperty().value = measureRange.value
-                    measureRange.bindBidirectional(valueProperty())
-                    measureRangeChanging.bind(valueChangingProperty())
                     val boundsProperty = boundsProperty()
                     boundsProperty.value = measureRangeBounds.value
                     measureRangeBounds.bindBidirectional(boundsProperty)
+
+                    valueProperty().value = measureRange.value
+                    measureRange.bindBidirectional(valueProperty())
+                    measureRangeChanging.bind(valueChangingProperty())
                 }
             }
 
