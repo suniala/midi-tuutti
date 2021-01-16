@@ -127,6 +127,7 @@ private class MidiPlayer(val song: SongStructure,
             try {
                 while (playing) {
                     val playStartMark: TimeMark = TimeSource.Monotonic.markNow()
+                    var afterJump = true
                     var prevTicks: Tick? = null
                     var prevChunkCalculatedTs = Duration.ZERO
 
@@ -139,7 +140,7 @@ private class MidiPlayer(val song: SongStructure,
                             pl.tempoChanged()
                         }
 
-                        measure.chunked().forEach { (ticks, events) ->
+                        measure.chunked(includeAdjustments = afterJump).forEach { (ticks, events) ->
                             if (playing) {
                                 val ticksDelta = ticks - (prevTicks ?: ticks)
                                 val timestampDelta = tempo.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
@@ -163,6 +164,7 @@ private class MidiPlayer(val song: SongStructure,
                                 prevChunkCalculatedTs = chunkCalculatedTs
                             }
                         }
+                        afterJump = false
                     }
 
                     // Start from beginning again

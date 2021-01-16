@@ -18,8 +18,10 @@ import midituutti.midi.TimeSignatureMessage
  */
 data class Measure(val number: Int, val start: Tick, val timeSignature: TimeSignature,
                    val initialTempo: Tempo, val initialAdjustments: Map<Int, List<MessageEvent>>, val events: List<EngineEvent>) {
-    fun chunked(): Sequence<Pair<Tick, List<EngineEvent>>> = sequence {
-        val adjustments = initialAdjustments.values.flatMap { it.map { v -> Pair(start, v) } }
+    fun chunked(includeAdjustments: Boolean): Sequence<Pair<Tick, List<EngineEvent>>> = sequence {
+        val adjustments =
+                if (includeAdjustments) initialAdjustments.values.flatMap { it.map { v -> Pair(start, v) } }
+                else emptyList()
         val otherEvents: List<Pair<Tick, EngineEvent>> = events.map { Pair(it.ticks(), it) }
 
         // Initial adjustments should be sent before any other events in the measure.
