@@ -96,7 +96,7 @@ class ChannelAdjustmentMessage(ticks: Tick, val original: MidiChannelM) : MidiMe
 
     override fun toJava(): JavaMidiMessage = original.rawMessage
 
-    override fun toString(): String = "${original.javaClass.simpleName}(ticks=${ticks()}, original=\"${original.accept(describer)}\""
+    override fun toString(): String = "${original.javaClass.simpleName}(ticks=${ticks()}, original=\"${original.accept(describer)}\")"
 
     /**
      * An "identifier" that provides us with simple means for making distinction between different event types.

@@ -42,7 +42,7 @@ private object RowFormatter {
                 formatTimeToMs(expectedDeltaTs),
                 formatTimeToMs(actualDeltaTs?.minus(expectedDeltaTs ?: Duration.ZERO)),
                 measure,
-                "\"${midiMessage ?: '-'}\""
+                "${midiMessage ?: '-'}"
         ).joinToString(";")
     }
 
