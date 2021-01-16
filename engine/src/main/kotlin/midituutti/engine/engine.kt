@@ -153,7 +153,7 @@ private class MidiPlayer(val song: SongStructure,
                                 }
 
                                 for (event in events) {
-                                    val eventMidiMessage: MidiMessage? = handleEvent(event)
+                                    val eventMidiMessage: MidiMessage = handleEvent(event)
 
                                     EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, ticks,
                                             if (event == events.first()) timestampDelta else Duration.ZERO,
@@ -176,7 +176,7 @@ private class MidiPlayer(val song: SongStructure,
         }
     }
 
-    private fun handleEvent(event: EngineEvent): MidiMessage? {
+    private fun handleEvent(event: EngineEvent): MidiMessage {
         when (event) {
             is MessageEvent ->
                 when (event.message) {
@@ -191,7 +191,7 @@ private class MidiPlayer(val song: SongStructure,
             }
         }
 
-        val midiMessage: MidiMessage? = when (event) {
+        val midiMessage: MidiMessage = when (event) {
             is MessageEvent -> event.message
             is ClickEvent -> with(event) {
                 when (click) {
@@ -201,21 +201,20 @@ private class MidiPlayer(val song: SongStructure,
                 }
             }
         }
-        if (midiMessage != null) {
-            // Some midi programs use a "note on" message with velocity 0 instead of "note off" messages. Let's not
-            // adjust the volume of such velocity 0 notes.
-            if (midiMessage is NoteMessage && midiMessage.note().onOff == OnOff.On && midiMessage.note().velocity > 0) {
-                val track = when (event) {
-                    is MessageEvent -> MidiTrack(midiMessage.note().channel)
-                    is ClickEvent -> ClickTrack
-                }
-                synthesizerPort.send(NoteMessage.fromNote(
-                        midiMessage.ticks(),
-                        midiMessage.note().copy(velocity = (midiMessage.note().velocity * mixerState.getOrDefault(track, 1.0)).roundToInt())))
-            } else {
-                // Let other messages pass as is.
-                synthesizerPort.send(midiMessage)
+
+        // Some midi programs use a "note on" message with velocity 0 instead of "note off" messages. Let's not
+        // adjust the volume of such velocity 0 notes.
+        if (midiMessage is NoteMessage && midiMessage.note().onOff == OnOff.On && midiMessage.note().velocity > 0) {
+            val track = when (event) {
+                is MessageEvent -> MidiTrack(midiMessage.note().channel)
+                is ClickEvent -> ClickTrack
             }
+            synthesizerPort.send(NoteMessage.fromNote(
+                    midiMessage.ticks(),
+                    midiMessage.note().copy(velocity = (midiMessage.note().velocity * mixerState.getOrDefault(track, 1.0)).roundToInt())))
+        } else {
+            // Let other messages pass as is.
+            synthesizerPort.send(midiMessage)
         }
 
         return midiMessage
