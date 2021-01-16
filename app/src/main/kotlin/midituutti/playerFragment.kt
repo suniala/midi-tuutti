@@ -43,7 +43,6 @@ class PlayerFragment : Fragment("Player") {
     private var measureRangeBounds = SimpleObjectProperty(Pair(1, song.value.measures.size))
     private val measureRange = SimpleObjectProperty(Pair(1, song.value.measures.size))
 
-    //    private val measureRange = SimpleObjectProperty(measureRangeBounds.value)
     private var measureRangeBlink: BooleanProperty by singleAssign()
 
     private var playButton: ToggleButton by singleAssign()
