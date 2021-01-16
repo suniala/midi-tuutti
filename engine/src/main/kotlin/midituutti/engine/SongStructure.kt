@@ -117,24 +117,24 @@ class SongStructure(val measures: List<Measure>) {
         fun parse(ts: TimeSignatureMessage, initialTempo: TempoMessage, messages: List<MidiMessage>): List<Measure> =
                 parseRec(emptyList(), ts.timeSignature(), initialTempo.tempo(), emptyMap(), ts.ticks(), emptyList(), messages)
 
-        private fun withinMeasure(message: MidiMessage, timeSignature: TimeSignature, measureStart: Tick): Boolean {
-            val delta = message.ticks() - measureStart
+        private fun withinMeasure(ticks: Tick, timeSignature: TimeSignature, measureStart: Tick): Boolean {
+            val delta = ticks - measureStart
             return delta < measureTicks(ticksPerBeat, timeSignature)
         }
 
-        private fun nextMeasureStart(start: Tick, timeSignature: TimeSignature): Tick =
-                start + measureTicks(ticksPerBeat, timeSignature)
+        private fun nextMeasureStart(currMeasure: Tick, timeSignature: TimeSignature, toNextMeasure: Int): Tick =
+                currMeasure + measureTicks(ticksPerBeat, timeSignature).let { Tick(it.tick * toNextMeasure) }
 
         private tailrec fun parseRec(acc: List<Measure>,
                                      currTimeSignature: TimeSignature,
                                      currTempo: Tempo,
                                      prevAdjustmentsReversed: Map<Int, Map<String, List<MessageEvent>>>,
                                      measureStart: Tick,
-                                     measure: List<EngineEvent>,
+                                     measureEvents: List<EngineEvent>,
                                      rem: List<MidiMessage>): List<Measure> {
             if (rem.isEmpty()) {
                 return acc + Measure(acc.size + 1, measureStart, currTimeSignature, currTempo,
-                        collectLatestTypeSpecificAdjustments(prevAdjustmentsReversed, measureStart), measure)
+                        collectLatestTypeSpecificAdjustments(prevAdjustmentsReversed, measureStart), measureEvents)
             } else {
                 val message = rem.first()
 
@@ -149,17 +149,41 @@ class SongStructure(val measures: List<Measure>) {
                 val messageEvent = MessageEvent(message)
                 val nextPrevAdjustmentsReversed = addPossibleAdjustmentEvent(prevAdjustmentsReversed, messageEvent)
 
-                return if (withinMeasure(message, currTimeSignature, measureStart)) {
+                return if (withinMeasure(message.ticks(), currTimeSignature, measureStart)) {
+                    // We are still within the current measure.
                     parseRec(acc, nextTimeSignature, nextTempo, nextPrevAdjustmentsReversed, measureStart,
-                            measure + messageEvent, rem.drop(1))
+                            measureEvents + messageEvent, rem.drop(1))
                 } else {
+                    // This message is in the next (or later) measure. Normally there is only one measure change between
+                    // messages but there may be more if there are empty measures between messages. Therefore we must
+                    // generate 1..n measures until we get to the measure of the current message.
+                    val firstIntermediateMeasure = acc.size + 1
+                    val intermediateMeasures = generateSequence(firstIntermediateMeasure, { it + 1 })
+                            .map { measureNo ->
+                                Pair(
+                                        measureNo,
+                                        nextMeasureStart(measureStart, currTimeSignature, measureNo - firstIntermediateMeasure))
+                            }
+                            .takeWhile {
+                                // Including the measure of the current message.
+                                mt ->
+                                mt.second <= message.ticks()
+                            }
+                            .map { mt -> Triple(mt.first, mt.second, if (mt.first == firstIntermediateMeasure) measureEvents else emptyList()) }
+                            .map { mte ->
+                                Measure(mte.first, mte.second, currTimeSignature, currTempo,
+                                        collectLatestTypeSpecificAdjustments(prevAdjustmentsReversed, mte.second), mte.third)
+                            }
+                            .toList()
+                            // Exclude the measure of the current message
+                            .dropLast(1)
+
                     parseRec(
-                            acc + Measure(acc.size + 1, measureStart, currTimeSignature, currTempo,
-                                    collectLatestTypeSpecificAdjustments(prevAdjustmentsReversed, measureStart), measure),
+                            acc + intermediateMeasures,
                             nextTimeSignature,
                             nextTempo,
                             nextPrevAdjustmentsReversed,
-                            nextMeasureStart(measureStart, currTimeSignature),
+                            nextMeasureStart(intermediateMeasures.last().start, currTimeSignature, 1),
                             listOf(messageEvent),
                             rem.drop(1))
                 }
