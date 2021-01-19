@@ -14,7 +14,7 @@ javafx {
 
 dependencies {
     compile project(":engine")
-    compile "no.tornado:tornadofx:2.0.0-SNAPSHOT"
+    compile "no.tornado:tornadofx:1.7.20"
 
     // Tornado depends on these. Let's make sure they have the same version as our kotlin.
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
