@@ -1,23 +1,30 @@
 plugins {
     id "application"
     id "org.openjfx.javafxplugin" version "0.0.8"
+    id "org.beryx.jlink" version "2.4.0"
 }
 
-mainClassName = "midituutti.MidiTuuttiKt"
+compileJava.destinationDir = compileKotlin.destinationDir
+
+application {
+    mainClassName = "midituutti/midituutti.MidiTuuttiKt"
+}
 
 defaultTasks "run"
 
 javafx {
     version = "11.0.2"
-    modules = ["javafx.controls", "javafx.graphics"]
+    modules = ["javafx.controls", "javafx.graphics", "javafx.fxml"]
 }
 
 dependencies {
     compile project(":engine")
-    compile "no.tornado:tornadofx:1.7.20"
+    compile("no.tornado:tornadofx:1.7.20") {
+        exclude group: "org.jetbrains.kotlin"
+    }
 
     // Tornado depends on these. Let's make sure they have the same version as our kotlin.
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
 }
 
@@ -34,4 +41,13 @@ run {
                 "--add-modules=javafx.base,javafx.controls,javafx.graphics"
         ]
     }
+}
+
+jlink {
+    launcher {
+        name = "midi-tuutti"
+    }
+    addExtraDependencies("javafx")
+    imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-image.zip"))
+    forceMerge("kotlin")
 }
