@@ -27,5 +27,5 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: Package
-        path: build/libs
+        path: build/image-zip
         
