@@ -1,3 +1,0 @@
-dependencies {
-    compile files("libs/java-midi-decoder-0.2.0.jar")
-}
