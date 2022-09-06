@@ -6,7 +6,9 @@ name: Java CI with Gradle
 on:
   workflow_dispatch:
   push:
-    branches: [ github-build ]
+    # branches: [ github-build ]
+    tags:
+      - '*'
   pull_request:
     branches: [ github-build ]
 
