@@ -36,6 +36,6 @@ jobs:
         path: build/image-zip
     - name: Release
       uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
         files: Package.zip
-        name: format('0.1.0b_{0}.zip', github.sha)
