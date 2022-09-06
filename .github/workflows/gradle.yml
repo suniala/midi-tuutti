@@ -38,4 +38,4 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: Package.zip
-        name: ${{ '0.1.0' + github.sha + '.zip' }}
+        name: format('0.1.0b_{0}.zip', github.sha)
