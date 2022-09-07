@@ -13,31 +13,70 @@ on:
     branches: [ github-build ]
 
 jobs:
-  build:
-
-    runs-on: windows-latest
-    # runs-on: ubuntu-latest
+  build-linux:
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up JDK
       uses: actions/setup-java@v2
       with:
         java-version: '11'
         distribution: 'adopt'
         architecture: x64
+
     - name: Log Java version
       run: java -version
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+
     - name: Build with Gradle
       run: ./gradlew jlinkZip -x test -info
+
     - uses: actions/upload-artifact@v2
       with:
-        name: Package
+        name: midi-tuutti-image-linux.zip
         path: build/image-zip
+
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
+        name: midi-tuutti-image-linux.zip
+        files: build/image-zip/midi-tuutti-image.zip
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up JDK
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        architecture: x64
+
+    - name: Log Java version
+      run: java -version
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew jlinkZip -x test -info
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: midi-tuutti-image-windows.zip
+        path: build/image-zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: midi-tuutti-image-windows.zip
         files: build/image-zip/midi-tuutti-image.zip
