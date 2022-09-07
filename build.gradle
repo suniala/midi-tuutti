@@ -83,6 +83,13 @@ jlink {
     }
     addExtraDependencies("javafx")
     forceMerge("java-midi-decoder")
-    imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-image.zip"))
+    OperatingSystem os = org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.currentOperatingSystem;
+    if (os.isLinux()) {
+        imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-linux.zip"))
+    } else if (os.isWindows()) {
+        imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-windows.zip"))
+    } else {
+        throw new RuntimeException("Unsupported operating system")
+    }
     forceMerge("kotlin")
 }

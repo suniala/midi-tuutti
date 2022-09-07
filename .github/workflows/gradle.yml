@@ -37,15 +37,14 @@ jobs:
 
     - uses: actions/upload-artifact@v2
       with:
-        name: midi-tuutti-image-linux.zip
+        name: midi-tuutti-linux.zip
         path: build/image-zip
 
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        name: midi-tuutti-image-linux.zip
-        files: build/image-zip/midi-tuutti-image.zip
+        files: build/image-zip/midi-tuutti-linux.zip
 
   build-windows:
     runs-on: windows-latest
@@ -71,12 +70,11 @@ jobs:
 
     - uses: actions/upload-artifact@v2
       with:
-        name: midi-tuutti-image-windows.zip
+        name: midi-tuutti-windows.zip
         path: build/image-zip
 
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        name: midi-tuutti-image-windows.zip
-        files: build/image-zip/midi-tuutti-image.zip
+        files: build/image-zip/midi-tuutti-windows.zip
