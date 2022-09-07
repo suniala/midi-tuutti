@@ -2,6 +2,17 @@
 
 A midi player for playing backing tracks while practicing.
 
+
+## How To Get It?
+
+See [Releases](https://github.com/suniala/midi-tuutti/releases) for experimental builds. Download one for your operating system, unzip it and:
+
+* On Windows: Run `image/bin/midi-tuutti.bat`
+* On Linux: Run `image/bin/midi-tuutti`
+
+For developers: see build and run instructions below.
+
+
 ## Current features
 
 ![Midi-Tuutti Player](/doc/midi-tuutti-player-demo.png)
