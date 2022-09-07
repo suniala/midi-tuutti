@@ -40,4 +40,4 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: Package.zip
+        files: build/image-zip/midi-tuutti-image.zip
