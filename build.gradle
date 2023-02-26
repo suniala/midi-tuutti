@@ -88,6 +88,8 @@ jlink {
         imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-linux.zip"))
     } else if (os.isWindows()) {
         imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-windows.zip"))
+    } else if (os.isMacOsX()) {
+        imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-macos.zip"))
     } else {
         throw new RuntimeException("Unsupported operating system")
     }
