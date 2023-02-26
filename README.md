@@ -81,5 +81,5 @@ You need to have JDK 11 and OpenJFX installed. Run with:
 java \
   --module-path /usr/share/openjfx/lib \
   --add-modules=javafx.base,javafx.controls,javafx.graphics \
-  -jar ./app/build/libs/midi-tuutti.jar
+  -jar ./build/libs/midi-tuutti.jar
 ```

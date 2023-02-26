@@ -1,2 +1,0 @@
-rootProject.name = 'midi-tuutti'
-include 'app', 'engine', 'midi'

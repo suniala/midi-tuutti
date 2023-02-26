@@ -2,7 +2,7 @@ package midituutti.components
 
 import javafx.event.EventTarget
 import javafx.scene.control.Slider
-import tornadofx.*
+import tornadofx.attachTo
 
 class NonFocusableSlider : Slider() {
     override fun requestFocus() {

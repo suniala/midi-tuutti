@@ -8,31 +8,88 @@ buildscript {
     }
 }
 
-subprojects {
-    repositories {
-        mavenCentral()
-        maven {
-            url = "https://oss.sonatype.org/content/repositories/snapshots"
-        }
-    }
-    apply plugin: "kotlin"
+plugins {
+    id "application"
+    id "org.openjfx.javafxplugin" version "0.0.8"
+    id "org.beryx.jlink" version "2.4.0"
+}
 
-    dependencies {
-        compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-        compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2"
-        testCompile "junit:junit:4.11"
-        testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
-    }
+apply plugin: "kotlin"
 
-    compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+repositories {
+    mavenCentral()
+    maven {
+        url = "https://oss.sonatype.org/content/repositories/snapshots"
     }
+    flatDir {
+        dirs "libs"
+    }
+}
 
-    compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+defaultTasks "run"
+
+compileJava.destinationDir = compileKotlin.destinationDir
+
+application {
+    mainClassName = "midituutti/midituutti.MidiTuuttiKt"
+}
+
+run {
+    doFirst {
+        jvmArgs = [
+                "--module-path", classpath.asPath,
+                "--add-modules=javafx.base,javafx.controls,javafx.graphics"
+        ]
     }
+}
+
+javafx {
+    version = "11.0.2"
+    modules = ["javafx.controls", "javafx.graphics", "javafx.fxml", "javafx.media", "javafx.swing", "javafx.web"]
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2"
+
+    compile("no.tornado:tornadofx:2.0.0-SNAPSHOT") {
+        exclude group: "org.jetbrains.kotlin"
+    }
+    // Tornado depends on these. Let's make sure they have the same version as our kotlin.
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+
+    compile ":java-midi-decoder:0.2.1-SNAPSHOT"
+
+    testCompile "junit:junit:4.11"
+    testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 wrapper {
     gradleVersion = "5.6.4"
+}
+
+jlink {
+    launcher {
+        name = "midi-tuutti"
+    }
+    addExtraDependencies("javafx")
+    forceMerge("java-midi-decoder")
+    OperatingSystem os = org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.currentOperatingSystem;
+    if (os.isLinux()) {
+        imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-linux.zip"))
+    } else if (os.isWindows()) {
+        imageZip.set(project.file("${project.buildDir}/image-zip/midi-tuutti-windows.zip"))
+    } else {
+        throw new RuntimeException("Unsupported operating system")
+    }
+    forceMerge("kotlin")
 }

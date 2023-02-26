@@ -1,15 +1,7 @@
 package midituutti.engine
 
 import fi.kapsi.kosmik.javamididecoder.MidiShortM
-import midituutti.midi.ChannelAdjustmentMessage
-import midituutti.midi.MidiFile
-import midituutti.midi.MidiMessage
-import midituutti.midi.NoteMessage
-import midituutti.midi.Tempo
-import midituutti.midi.TempoMessage
-import midituutti.midi.Tick
-import midituutti.midi.TimeSignature
-import midituutti.midi.TimeSignatureMessage
+import midituutti.midi.*
 
 /**
  * @param initialTempo Tempo at the beginning of this measure
@@ -64,7 +56,7 @@ class SongStructure(val measures: List<Measure>) {
                 m.events.mapNotNull { e ->
                     if (e is MessageEvent) {
                         if (e.message is ChannelAdjustmentMessage) e.message.let { msg ->
-                            if (msg.original is MidiShortM.MidiProgramChangeM) (msg.original as MidiShortM.MidiProgramChangeM).let { pc ->
+                            if (msg.original is MidiShortM.MidiProgramChangeM) msg.original.let { pc ->
                                 Pair(MidiTrack(pc.channel), Pair(pc.displayValue, pc.gmInstrumentName))
                             } else null
                         } else null

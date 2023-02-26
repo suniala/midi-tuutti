@@ -1,13 +1,25 @@
 package midituutti
 
 import javafx.scene.paint.Color
+import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.TextAlignment
 import tornadofx.*
+import java.lang.invoke.MethodHandles
+
+/**
+ * I can't figure out the correct resource path when using CSSKt#loadFont so let's use our own function instead.
+ */
+fun myLoadFont(path: String, size: Number): Font? {
+    return MethodHandles.lookup().lookupClass().getResourceAsStream(path)?.use { Font.loadFont(it, size.toDouble()) }
+}
 
 class Style : Stylesheet() {
 
     companion object {
+        // NOTE: font size does not matter here
+        val mainFont = myLoadFont("fonts/DejaVuSansMono-Bold.ttf", -1)!!
+
         val button by cssclass()
         val displayFont by cssclass()
         val displaySectionSeparator by cssclass()
@@ -64,7 +76,8 @@ class Style : Stylesheet() {
         }
 
         displayFont {
-            fontFamily = "DejaVu Sans Mono"
+            mainFont.let { fontFamily = it.family }
+
             fontWeight = FontWeight.BOLD
             textFill = colorDisplayText
 

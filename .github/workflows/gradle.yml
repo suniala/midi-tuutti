@@ -4,23 +4,77 @@
 name: Java CI with Gradle
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main ]
+    # branches: [ github-build ]
+    tags:
+      - '*'
   pull_request:
-    branches: [ main ]
+    branches: [ github-build ]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up JDK
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v2
       with:
-        java-version: 11
+        java-version: '11'
+        distribution: 'adopt'
+        architecture: x64
+
+    - name: Log Java version
+      run: java -version
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew jlinkZip -x test -info
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: midi-tuutti-linux.zip
+        path: build/image-zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: build/image-zip/midi-tuutti-linux.zip
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up JDK
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        architecture: x64
+
+    - name: Log Java version
+      run: java -version
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew jlinkZip -x test -info
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: midi-tuutti-windows.zip
+        path: build/image-zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: build/image-zip/midi-tuutti-windows.zip

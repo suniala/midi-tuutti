@@ -340,8 +340,10 @@ class PlayerFragment : Fragment("Player") {
                             hbox {
                                 style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
 
-                                nonFocusableToggleButton("Song", tempoModeGroup, selectFirst = true,
-                                        value = TempoMode.MULTIPLIER) {
+                                nonFocusableToggleButton(
+                                    "Song", tempoModeGroup, selectFirst = true,
+                                    value = TempoMode.MULTIPLIER
+                                ) {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                     addEventFilter(MouseEvent.ANY, preventDeselect())
                                 }
