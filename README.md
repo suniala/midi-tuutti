@@ -7,8 +7,9 @@ A midi player for playing backing tracks while practicing.
 
 See [Releases](https://github.com/suniala/midi-tuutti/releases) for experimental builds. Download one for your operating system, unzip it and:
 
-* On Windows: Run `image/bin/midi-tuutti.bat`
+* On macOS: Run `image/bin/midi-tuutti`
 * On Linux: Run `image/bin/midi-tuutti`
+* On Windows: Run `image/bin/midi-tuutti.bat`
 
 For developers: see build and run instructions below.
 
