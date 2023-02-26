@@ -10,8 +10,12 @@ on:
       - '*'
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows, ubuntu]
+
+    runs-on: ${{ matrix.os }}-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -34,44 +38,11 @@ jobs:
 
     - uses: actions/upload-artifact@v2
       with:
-        name: midi-tuutti-linux.zip
+        name: midi-tuutti-${{ matrix.os }}.zip
         path: build/image-zip
 
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: build/image-zip/midi-tuutti-linux.zip
-
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up JDK
-      uses: actions/setup-java@v2
-      with:
-        java-version: '11'
-        distribution: 'adopt'
-        architecture: x64
-
-    - name: Log Java version
-      run: java -version
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Build with Gradle
-      run: ./gradlew jlinkZip -x test -info
-
-    - uses: actions/upload-artifact@v2
-      with:
-        name: midi-tuutti-windows.zip
-        path: build/image-zip
-
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: build/image-zip/midi-tuutti-windows.zip
+        files: build/image-zip/midi-tuutti-${{ matrix.os }}.zip
