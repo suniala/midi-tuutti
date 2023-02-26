@@ -6,11 +6,31 @@ name: Java CI with Gradle
 on:
   workflow_dispatch:
   push:
-    tags:
-      - '*'
 
 jobs:
+  test:
+    on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up JDK
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        architecture: x64
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Test with Gradle
+      run: ./gradlew test
+
   build:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+
     strategy:
       matrix:
         os: [windows, ubuntu, macos]
@@ -18,7 +38,6 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
 
     steps:
-
     - uses: actions/checkout@v2
 
     - name: Set up JDK
@@ -46,7 +65,7 @@ jobs:
 
     - name: Release linux
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu'
+      if: matrix.os == 'ubuntu'
       with:
         files: build/image-zip/midi-tuutti-linux.zip
 
@@ -59,6 +78,6 @@ jobs:
 
     - name: Release win/mac
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/') && matrix.os != 'ubuntu'
+      if: matrix.os != 'ubuntu'
       with:
         files: build/image-zip/midi-tuutti-${{ matrix.os }}.zip
