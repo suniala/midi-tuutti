@@ -58,7 +58,7 @@ jobs:
 
     - name: Upload linux
       if: matrix.os == 'ubuntu'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: midi-tuutti-linux.zip
         path: build/image-zip
@@ -71,7 +71,7 @@ jobs:
 
     - name: Upload win/mac
       if: matrix.os != 'ubuntu'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: midi-tuutti-${{ matrix.os }}.zip
         path: build/image-zip
