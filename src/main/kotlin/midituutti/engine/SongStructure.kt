@@ -1,6 +1,6 @@
 package midituutti.engine
 
-import fi.kapsi.kosmik.javamididecoder.MidiShortM
+import io.github.suniala.javamididecoder.MidiShortM
 import midituutti.midi.*
 
 /**

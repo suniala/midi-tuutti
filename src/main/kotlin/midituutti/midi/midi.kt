@@ -1,13 +1,13 @@
 package midituutti.midi
 
-import fi.kapsi.kosmik.javamididecoder.DescribingMidiShortMVisitor
-import fi.kapsi.kosmik.javamididecoder.MidiDecoder
-import fi.kapsi.kosmik.javamididecoder.MidiM
-import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTempoM
-import fi.kapsi.kosmik.javamididecoder.MidiMetaM.MidiTimeSignatureM
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiChannelM
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiControlChangeM
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiNoteM
+import io.github.suniala.javamididecoder.DescribingMidiShortMVisitor
+import io.github.suniala.javamididecoder.MidiDecoder
+import io.github.suniala.javamididecoder.MidiM
+import io.github.suniala.javamididecoder.MidiMetaM.MidiTempoM
+import io.github.suniala.javamididecoder.MidiMetaM.MidiTimeSignatureM
+import io.github.suniala.javamididecoder.MidiShortM.MidiChannelM
+import io.github.suniala.javamididecoder.MidiShortM.MidiControlChangeM
+import io.github.suniala.javamididecoder.MidiShortM.MidiNoteM
 import java.io.File
 import java.io.InputStream
 import javax.sound.midi.MidiSystem

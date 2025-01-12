@@ -1,8 +1,8 @@
 package midituutti.engine
 
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiControlChangeM
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiPitchWheelChangeM
-import fi.kapsi.kosmik.javamididecoder.MidiShortM.MidiProgramChangeM
+import io.github.suniala.javamididecoder.MidiShortM.MidiControlChangeM
+import io.github.suniala.javamididecoder.MidiShortM.MidiPitchWheelChangeM
+import io.github.suniala.javamididecoder.MidiShortM.MidiProgramChangeM
 import midituutti.midi.ChannelAdjustmentMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
