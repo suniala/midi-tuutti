@@ -54,7 +54,7 @@ For developers: see build and run instructions below.
 
 ## Midi Devices and Sounds
 Currently only the default Java Runtime MIDI device is supported. You can get
-better sounds by downloading a sound bank file and to:
+better sounds by downloading a sound bank file to:
 
 * When running a midi-tuutti release: `image/lib/audio/`
 * When running from sources: `$JAVA_HOME/jre/lib/audio`.
