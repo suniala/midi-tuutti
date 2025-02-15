@@ -1,6 +1,6 @@
 # midi-tuutti
 
-A midi player for playing backing tracks while practicing.
+A MIDI player for playing backing tracks while practicing.
 
 
 ## How To Get It?
@@ -52,10 +52,14 @@ For developers: see build and run instructions below.
 * Full screen - `f11`
 * Open file - `ctrl + o`
 
-## Midi Devices
-Currently only the default Java Runtime midi device is supported. You can get
-better sounds by copying a sound bank to `$JAVA_HOME/jre/lib/audio`. See
-[Java Sound API: Soundbanks](https://www.oracle.com/technetwork/java/soundbanks-135798.html) for details.
+## Midi Devices and Sounds
+Currently only the default Java Runtime MIDI device is supported. You can get
+better sounds by downloading a sound bank file and to:
+
+* When running a midi-tuutti release: `image/lib/audio/`
+* When running from sources: `$JAVA_HOME/jre/lib/audio`.
+ 
+See [Java Sound API: Soundbanks](https://www.oracle.com/technetwork/java/soundbanks-135798.html) for details.
 
 ## Ideas
 * Remember last n files
