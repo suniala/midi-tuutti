@@ -3,7 +3,11 @@ package midituutti
 import javafx.beans.property.DoubleProperty
 import javafx.geometry.Side
 import javafx.scene.control.TabPane
-import tornadofx.*
+import tornadofx.Fragment
+import tornadofx.attachTo
+import tornadofx.select
+import tornadofx.tab
+import tornadofx.tabpane
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -12,14 +16,16 @@ class TabsFragment : Fragment("Tabs") {
     val playerController: PlayerController by param()
 
     private fun newMixerFragment(): MixerFragment =
-            find(
-                    MixerFragment::rootFontSize to rootFontSize,
-                    MixerFragment::playerController to playerController)
+        find(
+            MixerFragment::rootFontSize to rootFontSize,
+            MixerFragment::playerController to playerController
+        )
 
     private fun newPlayerFragment(): PlayerFragment =
-            find(
-                    PlayerFragment::rootFontSize to rootFontSize,
-                    PlayerFragment::playerController to playerController)
+        find(
+            PlayerFragment::rootFontSize to rootFontSize,
+            PlayerFragment::playerController to playerController
+        )
 
     private val mixer = newMixerFragment()
 

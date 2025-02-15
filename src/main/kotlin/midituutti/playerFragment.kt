@@ -16,7 +16,20 @@ import midituutti.engine.MeasurePlaybackEvent
 import midituutti.engine.PlayEvent
 import midituutti.engine.TempoEvent
 import midituutti.midi.Tempo
-import tornadofx.*
+import tornadofx.Fragment
+import tornadofx.action
+import tornadofx.addClass
+import tornadofx.hbox
+import tornadofx.hgrow
+import tornadofx.label
+import tornadofx.onChange
+import tornadofx.pane
+import tornadofx.selectedValueProperty
+import tornadofx.singleAssign
+import tornadofx.spacer
+import tornadofx.stringBinding
+import tornadofx.useMaxWidth
+import tornadofx.vbox
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
@@ -69,6 +82,7 @@ class PlayerFragment : Fragment("Player") {
                 TempoAdjustment.RESET -> 1.0
                 TempoAdjustment.INCREASE -> tempoMultiplier.value + 0.01
             }
+
             TempoMode.CONSTANT -> constantTempo.value = when (adjustment) {
                 TempoAdjustment.DECREASE -> constantTempo.value - 1.0
                 TempoAdjustment.RESET -> Tempo(120.0)
@@ -142,8 +156,10 @@ class PlayerFragment : Fragment("Player") {
                 pane {
                     addClass(Style.displaySectionSeparator)
                     style(rootFontSize) {
-                        prop(borderWidth,
-                                fun(rem: (Double) -> String): String = "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
+                        prop(
+                            borderWidth,
+                            fun(rem: (Double) -> String): String =
+                                "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
                     }
                 }
 
@@ -209,8 +225,10 @@ class PlayerFragment : Fragment("Player") {
                 pane {
                     addClass(Style.displaySectionSeparator)
                     style(rootFontSize) {
-                        prop(borderWidth,
-                                fun(rem: (Double) -> String): String = "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
+                        prop(
+                            borderWidth,
+                            fun(rem: (Double) -> String): String =
+                                "${rem(Style.padRemCommon)} 0px ${rem(Style.padRemCommon)} 0px")
                     }
                 }
 
@@ -408,6 +426,7 @@ class PlayerFragment : Fragment("Player") {
                         currentMeasure.value = playbackEvent.measure
                         currentTimeSignature.value = playbackEvent.timeSignature
                     }
+
                     is TempoEvent -> {
                         songTempo.value = playbackEvent.tempo
                         adjustedTempo.value = playbackEvent.adjustedTempo

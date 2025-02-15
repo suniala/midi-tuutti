@@ -9,7 +9,21 @@ import javafx.scene.input.KeyCombination
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine
-import tornadofx.*
+import tornadofx.App
+import tornadofx.Controller
+import tornadofx.FX
+import tornadofx.UIComponent
+import tornadofx.View
+import tornadofx.action
+import tornadofx.borderpane
+import tornadofx.find
+import tornadofx.importStylesheet
+import tornadofx.item
+import tornadofx.label
+import tornadofx.launch
+import tornadofx.menu
+import tornadofx.menubar
+import tornadofx.separator
 import java.io.File
 import kotlin.time.ExperimentalTime
 
@@ -28,11 +42,11 @@ class RootView : View("Midi-Tuutti") {
     private val playerController = tornadofx.find(PlayerController::class)
 
     private val initialView =
-            if (rootViewController.initialFile.value != null) {
-                params
-                playerController.load(rootViewController.initialFile.value)
-                newTabs()
-            } else find<StartView>()
+        if (rootViewController.initialFile.value != null) {
+            params
+            playerController.load(rootViewController.initialFile.value)
+            newTabs()
+        } else find<StartView>()
 
     private var currentView: UIComponent = initialView
 
@@ -44,8 +58,8 @@ class RootView : View("Midi-Tuutti") {
                         title = "Open Midi File"
                         initialDirectory = rootViewController.lastDir.value
                         extensionFilters + listOf(
-                                FileChooser.ExtensionFilter("Midi Files", "*.mid"),
-                                FileChooser.ExtensionFilter("All Files", "*.*")
+                            FileChooser.ExtensionFilter("Midi Files", "*.mid"),
+                            FileChooser.ExtensionFilter("All Files", "*.*")
                         )
                     }
                     val selectedFile = fileChooser.showOpenDialog(primaryStage)
@@ -69,9 +83,10 @@ class RootView : View("Midi-Tuutti") {
     }
 
     private fun newTabs(): TabsFragment =
-            find(
-                    TabsFragment::rootFontSize to rootFontSize,
-                    TabsFragment::playerController to playerController)
+        find(
+            TabsFragment::rootFontSize to rootFontSize,
+            TabsFragment::playerController to playerController
+        )
 
 }
 
@@ -88,12 +103,14 @@ class MidiTuuttiApp : App() {
     private val preferredWidth = preferredHeight * 1.6
 
     init {
-        FX.layoutDebuggerShortcut = KeyCodeCombination(KeyCode.D,
-                KeyCombination.ModifierValue.DOWN,
-                KeyCombination.ModifierValue.DOWN,
-                KeyCombination.ModifierValue.UP,
-                KeyCombination.ModifierValue.UP,
-                KeyCombination.ModifierValue.UP)
+        FX.layoutDebuggerShortcut = KeyCodeCombination(
+            KeyCode.D,
+            KeyCombination.ModifierValue.DOWN,
+            KeyCombination.ModifierValue.DOWN,
+            KeyCombination.ModifierValue.UP,
+            KeyCombination.ModifierValue.UP,
+            KeyCombination.ModifierValue.UP
+        )
     }
 
     override fun start(stage: Stage) {

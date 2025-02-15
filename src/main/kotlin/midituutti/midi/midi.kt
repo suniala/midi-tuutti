@@ -69,19 +69,21 @@ sealed class MidiMessage(private val ticks: Tick) {
 class NoteMessage(ticks: Tick, val original: MidiNoteM) : MidiMessage(ticks) {
     override fun toJava(): JavaMidiMessage = original.rawMessage
 
-    fun note(): Note = Note(if (original.isOn) OnOff.On else OnOff.Off,
-            original.channel, original.note, original.velocity)
+    fun note(): Note = Note(
+        if (original.isOn) OnOff.On else OnOff.Off,
+        original.channel, original.note, original.velocity
+    )
 
     companion object {
         fun fromNote(ticks: Tick, note: Note): NoteMessage {
             val javaMidiMessage = JavaShortMessage(
-                    when (note.onOff) {
-                        OnOff.On -> JavaShortMessage.NOTE_ON
-                        else -> JavaShortMessage.NOTE_OFF
-                    },
-                    note.channel - 1,
-                    note.note,
-                    note.velocity
+                when (note.onOff) {
+                    OnOff.On -> JavaShortMessage.NOTE_ON
+                    else -> JavaShortMessage.NOTE_OFF
+                },
+                note.channel - 1,
+                note.note,
+                note.velocity
             )
             return NoteMessage(ticks, MidiDecoder.decodeMessage(javaMidiMessage) as MidiNoteM)
         }
@@ -96,7 +98,8 @@ class ChannelAdjustmentMessage(ticks: Tick, val original: MidiChannelM) : MidiMe
 
     override fun toJava(): JavaMidiMessage = original.rawMessage
 
-    override fun toString(): String = "${original.javaClass.simpleName}(ticks=${ticks()}, original=\"${original.accept(describer)}\")"
+    override fun toString(): String =
+        "${original.javaClass.simpleName}(ticks=${ticks()}, original=\"${original.accept(describer)}\")"
 
     /**
      * An "identifier" that provides us with simple means for making distinction between different event types.
@@ -142,25 +145,28 @@ class MidiFile(private val seq: MidiSequence) {
 
     val messages: List<MidiMessage> by lazy {
         seq.tracks
-                .flatMap { track ->
-                    sequence {
-                        for (eventI in 0 until track.size()) {
-                            val message = track.get(eventI)
-                            val ticks = Tick(message.tick)
-                            val dm = MidiDecoder.decodeMessage(message.message)
-                            yield(when (dm) {
+            .flatMap { track ->
+                sequence {
+                    for (eventI in 0 until track.size()) {
+                        val message = track.get(eventI)
+                        val ticks = Tick(message.tick)
+                        val dm = MidiDecoder.decodeMessage(message.message)
+                        yield(
+                            when (dm) {
                                 is MidiChannelM -> when (dm) {
                                     is MidiNoteM -> NoteMessage(ticks, dm)
                                     else -> ChannelAdjustmentMessage(ticks, dm)
                                 }
+
                                 is MidiTempoM -> TempoMessage(ticks, dm)
                                 is MidiTimeSignatureM -> TimeSignatureMessage(ticks, dm)
                                 else -> UnspecifiedMessage(ticks, dm)
-                            })
-                        }
-                    }.toList()
-                }
-                .sortedBy { m -> m.ticks() }
+                            }
+                        )
+                    }
+                }.toList()
+            }
+            .sortedBy { m -> m.ticks() }
     }
 }
 

@@ -4,7 +4,13 @@ import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.TextAlignment
-import tornadofx.*
+import tornadofx.Stylesheet
+import tornadofx.box
+import tornadofx.c
+import tornadofx.cssclass
+import tornadofx.csspseudoclass
+import tornadofx.multi
+import tornadofx.px
 import java.lang.invoke.MethodHandles
 
 /**

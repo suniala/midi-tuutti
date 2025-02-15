@@ -16,7 +16,15 @@ import midituutti.BidirectionalBridge
 import midituutti.Style
 import midituutti.bindBidirectional
 import midituutti.style
-import tornadofx.*
+import tornadofx.action
+import tornadofx.hbox
+import tornadofx.hgrow
+import tornadofx.minusAssign
+import tornadofx.mutateOnChange
+import tornadofx.onChange
+import tornadofx.plusAssign
+import tornadofx.singleAssign
+import tornadofx.vbox
 import kotlin.math.roundToInt
 
 interface MeasureSlider {
@@ -87,8 +95,9 @@ fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() ->
 
     bindBidirectional(object : BidirectionalBridge {
         override fun leftSideObservables(): Collection<ObservableValue<*>> = listOf(
-                startSlider.valueProperty(),
-                endSlider.valueProperty())
+            startSlider.valueProperty(),
+            endSlider.valueProperty()
+        )
 
         override fun rightSideObservables(): Collection<ObservableValue<*>> = listOf(range)
 

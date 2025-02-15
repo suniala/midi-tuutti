@@ -11,9 +11,9 @@ class NonFocusableSlider : Slider() {
 }
 
 fun EventTarget.nonFocusableSlider(
-        min: Number? = null,
-        max: Number? = null,
-        op: Slider.() -> Unit = {}
+    min: Number? = null,
+    max: Number? = null,
+    op: Slider.() -> Unit = {}
 ) = NonFocusableSlider().attachTo(this, op) {
     if (min != null) it.min = min.toDouble()
     if (max != null) it.max = max.toDouble()

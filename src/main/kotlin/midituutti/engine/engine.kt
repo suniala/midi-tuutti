@@ -1,6 +1,17 @@
 package midituutti.engine
 
-import midituutti.midi.*
+import midituutti.midi.MidiFile
+import midituutti.midi.MidiMessage
+import midituutti.midi.MidiPort
+import midituutti.midi.Note
+import midituutti.midi.NoteMessage
+import midituutti.midi.OnOff
+import midituutti.midi.Tempo
+import midituutti.midi.TempoMessage
+import midituutti.midi.Tick
+import midituutti.midi.TimeSignature
+import midituutti.midi.createDefaultSynthesizerPort
+import midituutti.midi.openFile
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -70,10 +81,12 @@ private interface PlayerListener {
 }
 
 @ExperimentalTime
-private class MidiPlayer(val song: SongStructure,
-                         var tempoModifier: (Tempo) -> Tempo,
-                         val midiFile: MidiFile,
-                         val synthesizerPort: MidiPort) : Thread() {
+private class MidiPlayer(
+    val song: SongStructure,
+    var tempoModifier: (Tempo) -> Tempo,
+    val midiFile: MidiFile,
+    val synthesizerPort: MidiPort
+) : Thread() {
     val playerListeners = mutableListOf<PlayerListener>()
 
     init {
@@ -97,10 +110,10 @@ private class MidiPlayer(val song: SongStructure,
     private var end: Int? = null
 
     private var mixerState: Map<EngineTrack, Double> = ((1..16).map { MidiTrack(it) } + ClickTrack)
-            .map {
-                Pair(it, 1.0)
-            }
-            .toMap()
+        .map {
+            Pair(it, 1.0)
+        }
+        .toMap()
 
     fun currentTempo(): Tempo = tempo
 
@@ -132,7 +145,8 @@ private class MidiPlayer(val song: SongStructure,
                         measure.chunked(includeAdjustments = afterJump).forEach { (ticks, events) ->
                             if (playing) {
                                 val ticksDelta = ticks - (prevTicks ?: ticks)
-                                val timestampDelta = tempo.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
+                                val timestampDelta =
+                                    tempo.let { t -> ticksDelta.toDuration(midiFile.ticksPerBeat(), tempoModifier(t)) }
                                 val chunkCalculatedTs = prevChunkCalculatedTs + timestampDelta
 
                                 (chunkCalculatedTs - playStartMark.elapsedNow()).let { timeToEventCalculatedNs ->
@@ -144,9 +158,11 @@ private class MidiPlayer(val song: SongStructure,
                                 for (event in events) {
                                     val eventMidiMessage: MidiMessage = handleEvent(event)
 
-                                    EngineTraceLogger.trace(playStartMark, chunkCalculatedTs, ticks,
-                                            if (event == events.first()) timestampDelta else Duration.ZERO,
-                                            eventMidiMessage, measure.number)
+                                    EngineTraceLogger.trace(
+                                        playStartMark, chunkCalculatedTs, ticks,
+                                        if (event == events.first()) timestampDelta else Duration.ZERO,
+                                        eventMidiMessage, measure.number
+                                    )
                                 }
 
                                 prevTicks = ticks
@@ -173,9 +189,11 @@ private class MidiPlayer(val song: SongStructure,
                         tempo = event.message.tempo()
                         playerListeners.forEach { pl -> pl.tempoChanged() }
                     }
+
                     else -> {
                     }
                 }
+
             else -> {
             }
         }
@@ -198,9 +216,17 @@ private class MidiPlayer(val song: SongStructure,
                 is MessageEvent -> MidiTrack(midiMessage.note().channel)
                 is ClickEvent -> ClickTrack
             }
-            synthesizerPort.send(NoteMessage.fromNote(
+            synthesizerPort.send(
+                NoteMessage.fromNote(
                     midiMessage.ticks(),
-                    midiMessage.note().copy(velocity = (midiMessage.note().velocity * mixerState.getOrDefault(track, 1.0)).roundToInt())))
+                    midiMessage.note().copy(
+                        velocity = (midiMessage.note().velocity * mixerState.getOrDefault(
+                            track,
+                            1.0
+                        )).roundToInt()
+                    )
+                )
+            )
         } else {
             // Let other messages pass as is.
             synthesizerPort.send(midiMessage)
@@ -250,10 +276,10 @@ private class MidiPlayer(val song: SongStructure,
 
     fun updateMixer(state: Map<EngineTrack, Double>) {
         mixerState = mixerState.entries
-                .map { e ->
-                    Pair(e.key, state.getOrDefault(e.key, e.value))
-                }
-                .toMap()
+            .map { e ->
+                Pair(e.key, state.getOrDefault(e.key, e.value))
+            }
+            .toMap()
     }
 }
 
@@ -296,9 +322,9 @@ private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener
     }
 
     override fun tempoChanged(): Unit =
-            TempoEvent(midiPlayer.currentTempo(), midiPlayer.currentAdjustedTempo()).let { event ->
-                playbackListeners.forEach { listener -> listener(event) }
-            }
+        TempoEvent(midiPlayer.currentTempo(), midiPlayer.currentAdjustedTempo()).let { event ->
+            playbackListeners.forEach { listener -> listener(event) }
+        }
 
     override fun atMeasureStart(measure: Int, timeSignature: TimeSignature) {
         playbackListeners.forEach { listener -> listener(MeasurePlaybackEvent(measure, timeSignature)) }

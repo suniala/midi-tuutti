@@ -15,39 +15,41 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
 
 @ExperimentalTime
-private data class LogMessage(val ticks: Tick, val timestamp: Duration, val actualDeltaTs: Duration?, val expectedDeltaTs: Duration?,
-                              val expectedTs: Duration, val midiMessage: MidiMessage?, val measure: Int)
+private data class LogMessage(
+    val ticks: Tick, val timestamp: Duration, val actualDeltaTs: Duration?, val expectedDeltaTs: Duration?,
+    val expectedTs: Duration, val midiMessage: MidiMessage?, val measure: Int
+)
 
 @ExperimentalTime
 private object RowFormatter {
     fun heading(): String = arrayOf(
-            "ticks",
-            "timestamp ms",
-            "expected ts ms",
-            "lag ms",
-            "actual delta ms",
-            "expected delta ms",
-            "delta diff ms",
-            "measure",
-            "message"
+        "ticks",
+        "timestamp ms",
+        "expected ts ms",
+        "lag ms",
+        "actual delta ms",
+        "expected delta ms",
+        "delta diff ms",
+        "measure",
+        "message"
     ).joinToString(";")
 
     fun row(logMessage: LogMessage): String = logMessage.run {
         arrayOf(
-                "$ticks",
-                formatTimeToMs(timestamp),
-                formatTimeToMs(expectedTs),
-                formatTimeToMs(timestamp - expectedTs),
-                formatTimeToMs(actualDeltaTs),
-                formatTimeToMs(expectedDeltaTs),
-                formatTimeToMs(actualDeltaTs?.minus(expectedDeltaTs ?: Duration.ZERO)),
-                measure,
-                "${midiMessage ?: '-'}"
+            "$ticks",
+            formatTimeToMs(timestamp),
+            formatTimeToMs(expectedTs),
+            formatTimeToMs(timestamp - expectedTs),
+            formatTimeToMs(actualDeltaTs),
+            formatTimeToMs(expectedDeltaTs),
+            formatTimeToMs(actualDeltaTs?.minus(expectedDeltaTs ?: Duration.ZERO)),
+            measure,
+            "${midiMessage ?: '-'}"
         ).joinToString(";")
     }
 
     private fun formatTimeToMs(time: Duration?): String =
-            String.format("%.3f", (time ?: Duration.ZERO).inMilliseconds)
+        String.format("%.3f", (time ?: Duration.ZERO).inMilliseconds)
 }
 
 @ExperimentalTime
@@ -57,14 +59,18 @@ object EngineTraceLogger {
     private var previous: LogMessage? = null
     private var flushJob: Job? = null
 
-    fun trace(playStartMark: TimeMark, expectedTimestampTs: Duration, ticks: Tick, expectedDeltaTs: Duration?,
-              midiMessage: MidiMessage?, currentMeasure: Int) {
+    fun trace(
+        playStartMark: TimeMark, expectedTimestampTs: Duration, ticks: Tick, expectedDeltaTs: Duration?,
+        midiMessage: MidiMessage?, currentMeasure: Int
+    ) {
         if (flushJob?.isActive == true && traceEnabled) {
             val eventTs = playStartMark.elapsedNow()
             val actualDeltaTs = previous?.let { p -> eventTs - p.timestamp }
             val expectedDeltaTsFromPrevious = if (previous != null) expectedDeltaTs else null
-            val logMessage = LogMessage(ticks, eventTs, actualDeltaTs, expectedDeltaTsFromPrevious,
-                    expectedTimestampTs, midiMessage, currentMeasure)
+            val logMessage = LogMessage(
+                ticks, eventTs, actualDeltaTs, expectedDeltaTsFromPrevious,
+                expectedTimestampTs, midiMessage, currentMeasure
+            )
             queue.put(logMessage)
             previous = logMessage
         }

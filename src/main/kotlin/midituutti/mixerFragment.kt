@@ -14,7 +14,18 @@ import midituutti.components.nonFocusableToggleButton
 import midituutti.engine.ClickTrack
 import midituutti.engine.EngineTrack
 import midituutti.engine.MidiTrack
-import tornadofx.*
+import tornadofx.Fragment
+import tornadofx.hbox
+import tornadofx.label
+import tornadofx.millis
+import tornadofx.mutateOnChange
+import tornadofx.onChange
+import tornadofx.singleAssign
+import tornadofx.spacer
+import tornadofx.tooltip
+import tornadofx.useMaxWidth
+import tornadofx.vbox
+import tornadofx.vgrow
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
@@ -25,32 +36,34 @@ private data class SliderProps(val volume: DoubleProperty, val solo: BooleanProp
 private val supportedTracks = (1..16).map { MidiTrack(it) } + ClickTrack
 
 private val shortcutsInOrder = listOf(
-        TrackShortCuts("1", "Q"),
-        TrackShortCuts("2", "W"),
-        TrackShortCuts("3", "E"),
-        TrackShortCuts("4", "R"),
-        TrackShortCuts("5", "T"),
-        TrackShortCuts("6", "Y"),
-        TrackShortCuts("7", "U"),
-        TrackShortCuts("8", "I"),
-        TrackShortCuts("9", "O"),
-        TrackShortCuts("0", "P"),
-        TrackShortCuts("A", "Z"),
-        TrackShortCuts("S", "X"),
-        TrackShortCuts("D", "C"),
-        TrackShortCuts("F", "V"),
-        TrackShortCuts("G", "B"),
-        TrackShortCuts("H", "N"),
-        TrackShortCuts("J", "M")
+    TrackShortCuts("1", "Q"),
+    TrackShortCuts("2", "W"),
+    TrackShortCuts("3", "E"),
+    TrackShortCuts("4", "R"),
+    TrackShortCuts("5", "T"),
+    TrackShortCuts("6", "Y"),
+    TrackShortCuts("7", "U"),
+    TrackShortCuts("8", "I"),
+    TrackShortCuts("9", "O"),
+    TrackShortCuts("0", "P"),
+    TrackShortCuts("A", "Z"),
+    TrackShortCuts("S", "X"),
+    TrackShortCuts("D", "C"),
+    TrackShortCuts("F", "V"),
+    TrackShortCuts("G", "B"),
+    TrackShortCuts("H", "N"),
+    TrackShortCuts("J", "M")
 )
 
 private val trackShortcuts = supportedTracks.zip(shortcutsInOrder).toMap()
 
-private fun EventTarget.mixerSlider(rootFontSize: DoubleProperty,
-                                    track: EngineTrack,
-                                    enabled: Boolean,
-                                    shortcut: (String, () -> Unit) -> Unit,
-                                    op: Node.() -> Unit = {}): SliderProps {
+private fun EventTarget.mixerSlider(
+    rootFontSize: DoubleProperty,
+    track: EngineTrack,
+    enabled: Boolean,
+    shortcut: (String, () -> Unit) -> Unit,
+    op: Node.() -> Unit = {}
+): SliderProps {
     var theSlider: Slider by singleAssign()
     var solo: ToggleButton by singleAssign()
     var muted: ToggleButton by singleAssign()
@@ -60,14 +73,17 @@ private fun EventTarget.mixerSlider(rootFontSize: DoubleProperty,
         alignment = Pos.CENTER
         style(rootFontSize) {
             prop(spacing, 0.2)
-            prop(padding,
-                    fun(rem: (Double) -> String): String = "${rem(0.1)} ${rem(0.1)} ${rem(0.4)} ${rem(0.1)}")
+            prop(
+                padding,
+                fun(rem: (Double) -> String): String = "${rem(0.1)} ${rem(0.1)} ${rem(0.4)} ${rem(0.1)}")
         }
 
-        label(when (track) {
-            is MidiTrack -> "${track.channel}"
-            is ClickTrack -> "C"
-        }) {
+        label(
+            when (track) {
+                is MidiTrack -> "${track.channel}"
+                is ClickTrack -> "C"
+            }
+        ) {
             style(rootFontSize) { prop(fontSize, 0.5) }
         }
 
@@ -114,10 +130,10 @@ class MixerFragment : Fragment("Mixer") {
 
         supportedTracks.forEach { t ->
             mixerSlider(
-                    rootFontSize,
-                    track = t,
-                    enabled = playerController.song().tracks.contains(t),
-                    shortcut = { c, a -> shortcut(c, a) }
+                rootFontSize,
+                track = t,
+                enabled = playerController.song().tracks.contains(t),
+                shortcut = { c, a -> shortcut(c, a) }
             ) {
                 tooltip(trackInstruments(t)?.let {
                     it.joinToString("\n") { p -> if (p.first != null) "${p.first} ${p.second}" else p.second }

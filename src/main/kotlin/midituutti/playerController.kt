@@ -9,7 +9,8 @@ import midituutti.engine.PlaybackEvent
 import midituutti.engine.Player
 import midituutti.engine.SongStructure
 import midituutti.midi.Tempo
-import tornadofx.*
+import tornadofx.Controller
+import tornadofx.FXEvent
 import java.io.File
 import kotlin.time.ExperimentalTime
 
@@ -22,10 +23,10 @@ class PlayerController : Controller() {
     private var song: SongStructure? = null
 
     private var mixerState: Map<EngineTrack, MixerChannel> = ((1..16).map { MidiTrack(it) } + ClickTrack)
-            .map {
-                Pair(it, MixerChannel(it, 1.0, muted = false, solo = false))
-            }
-            .toMap()
+        .map {
+            Pair(it, MixerChannel(it, 1.0, muted = false, solo = false))
+        }
+        .toMap()
 
     fun load(file: File) {
         val playerInitialState = PlaybackEngine.createPlayer(file.absolutePath, null, null)
@@ -61,7 +62,7 @@ class PlayerController : Controller() {
     }
 
     fun updateMixerChannel(track: EngineTrack, update: (MixerChannel) -> MixerChannel) =
-            updateMixer(update(mixerChannelState(track)))
+        updateMixer(update(mixerChannelState(track)))
 
     private fun updateMixer(mixerChannel: MixerChannel) {
         val newMixerState = mixerState.plus(Pair(mixerChannel.track, mixerChannel))
@@ -69,13 +70,13 @@ class PlayerController : Controller() {
         val someSolo = newMixerState.values.filter { it.solo }.any()
 
         val trackVolumes = newMixerState.values
-                .map { s ->
-                    with(s) {
-                        val volume = if (muted || (someSolo && !solo)) 0.0 else volumeAdjustment / maximumVolume
-                        Pair(track, volume)
-                    }
+            .map { s ->
+                with(s) {
+                    val volume = if (muted || (someSolo && !solo)) 0.0 else volumeAdjustment / maximumVolume
+                    Pair(track, volume)
                 }
-                .toMap()
+            }
+            .toMap()
         player().updateMixer(trackVolumes)
         mixerState = newMixerState
     }
