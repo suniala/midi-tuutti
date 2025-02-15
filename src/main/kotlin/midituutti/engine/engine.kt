@@ -42,7 +42,9 @@ data class ClickEvent(private val ticks: Tick, val click: ClickType) : EngineEve
 
 sealed class EngineTrack
 data class MidiTrack(val channel: Int) : EngineTrack()
-object ClickTrack : EngineTrack()
+object ClickTrack : EngineTrack() {
+    override fun toString(): String = "ClickTrack"
+}
 
 sealed class PlaybackEvent
 data class PlayEvent(val playing: Boolean) : PlaybackEvent()

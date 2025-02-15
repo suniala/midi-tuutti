@@ -14,6 +14,7 @@ import midituutti.components.nonFocusableToggleButton
 import midituutti.engine.ClickTrack
 import midituutti.engine.EngineTrack
 import midituutti.engine.MidiTrack
+import midituutti.engine.MixerChannel
 import tornadofx.Fragment
 import tornadofx.hbox
 import tornadofx.label
@@ -59,7 +60,7 @@ private val trackShortcuts = supportedTracks.zip(shortcutsInOrder).toMap()
 
 private fun EventTarget.mixerSlider(
     rootFontSize: DoubleProperty,
-    track: EngineTrack,
+    mixerChannelState: MixerChannel,
     enabled: Boolean,
     shortcut: (String, () -> Unit) -> Unit,
     op: Node.() -> Unit = {}
@@ -67,6 +68,8 @@ private fun EventTarget.mixerSlider(
     var theSlider: Slider by singleAssign()
     var solo: ToggleButton by singleAssign()
     var muted: ToggleButton by singleAssign()
+
+    val track = mixerChannelState.track
 
     vbox {
         isDisable = !enabled
@@ -88,12 +91,16 @@ private fun EventTarget.mixerSlider(
         }
 
         solo = nonFocusableToggleButton("S") {
+            selectedProperty().value = mixerChannelState.solo
+
             useMaxWidth = true
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
             shortcut("Shift+${trackShortcuts.getValue(track).up}") { if (enabled) fire() }
         }
 
         muted = nonFocusableToggleButton("M") {
+            selectedProperty().value = mixerChannelState.muted
+
             useMaxWidth = true
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
             shortcut("Shift+${trackShortcuts.getValue(track).down}") { if (enabled) fire() }
@@ -131,7 +138,7 @@ class MixerFragment : Fragment("Mixer") {
         supportedTracks.forEach { t ->
             mixerSlider(
                 rootFontSize,
-                track = t,
+                mixerChannelState = playerController.mixerChannelState(t),
                 enabled = playerController.song().tracks.contains(t),
                 shortcut = { c, a -> shortcut(c, a) }
             ) {

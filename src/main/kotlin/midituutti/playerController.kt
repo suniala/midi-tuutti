@@ -22,17 +22,24 @@ class PlayerController : Controller() {
 
     private var song: SongStructure? = null
 
-    private var mixerState: Map<EngineTrack, MixerChannel> = ((1..16).map { MidiTrack(it) } + ClickTrack)
-        .map {
-            Pair(it, MixerChannel(it, 1.0, muted = false, solo = false))
-        }
-        .toMap()
+    private var mixerState: Map<EngineTrack, MixerChannel> =
+        (1..16)
+            .map {
+                MixerChannel(MidiTrack(it), 1.0, muted = false, solo = false)
+            }
+            .plus(
+                MixerChannel(ClickTrack, 1.0, muted = true, solo = false)
+            )
+            .associateBy { it.track }
 
     fun load(file: File) {
         val playerInitialState = PlaybackEngine.createPlayer(file.absolutePath, null, null)
 
         player?.quit()
         player = playerInitialState.player
+
+        // Initialize the engine to correspond with the mixer's initial state
+        updateEngineMixer(mixerState)
 
         // Pass events from the player thread to the ui thread via TornadoFX EventBus
         player().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
@@ -62,10 +69,17 @@ class PlayerController : Controller() {
     }
 
     fun updateMixerChannel(track: EngineTrack, update: (MixerChannel) -> MixerChannel) =
-        updateMixer(update(mixerChannelState(track)))
+        updateMixerChannel(update(mixerChannelState(track)))
 
-    private fun updateMixer(mixerChannel: MixerChannel) {
+    fun mixerChannelState(track: EngineTrack): MixerChannel = mixerState.getValue(track)
+
+    private fun updateMixerChannel(mixerChannel: MixerChannel) {
         val newMixerState = mixerState.plus(Pair(mixerChannel.track, mixerChannel))
+        updateEngineMixer(newMixerState)
+        mixerState = newMixerState
+    }
+
+    private fun updateEngineMixer(newMixerState: Map<EngineTrack, MixerChannel>) {
         val maximumVolume = maxOf(1.0, newMixerState.values.map { s -> s.volumeAdjustment }.maxOrNull() ?: 1.0)
         val someSolo = newMixerState.values.filter { it.solo }.any()
 
@@ -78,8 +92,5 @@ class PlayerController : Controller() {
             }
             .toMap()
         player().updateMixer(trackVolumes)
-        mixerState = newMixerState
     }
-
-    private fun mixerChannelState(track: EngineTrack): MixerChannel = mixerState.getValue(track)
 }
