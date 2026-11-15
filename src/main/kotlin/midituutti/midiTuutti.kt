@@ -17,7 +17,6 @@ import tornadofx.View
 import tornadofx.action
 import tornadofx.borderpane
 import tornadofx.find
-import tornadofx.importStylesheet
 import tornadofx.item
 import tornadofx.label
 import tornadofx.launch
@@ -126,7 +125,7 @@ class MidiTuuttiApp : App() {
 
         with(stage) {
             super.start(this)
-            importStylesheet(Style::class)
+            scene.stylesheets.add(Style.cssUrl)
 
             val view = find<RootView>()
             view.rootFontSize.bind(scene.heightProperty().divide(19.0))

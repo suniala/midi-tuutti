@@ -1,0 +1,40 @@
+.button {
+    -fx-font-weight: bold;
+}
+
+.display {
+    -fx-background-color: black;
+}
+
+.display-section-separator {
+    -fx-border-color: black;
+    -fx-background-color: rgb(20, 20, 20);
+    -fx-min-width: 4px;
+    -fx-max-width: 4px;
+}
+
+.time-signature-value {
+    -fx-text-alignment: center;
+}
+
+.time-signature-separator {
+    -fx-background-color: lightgreen;
+    -fx-min-height: 2px;
+    -fx-max-height: 2px;
+}
+
+.control-section-separator {
+    -fx-background-color: rgb(200, 200, 200);
+    -fx-min-width: 2px;
+    -fx-max-width: 2px;
+}
+
+.display-font {
+    -fx-font-family: "DejaVu Sans Mono";
+    -fx-font-weight: bold;
+    -fx-text-fill: lightgreen;
+}
+
+.display-font:blink {
+    -fx-text-fill: black;
+}

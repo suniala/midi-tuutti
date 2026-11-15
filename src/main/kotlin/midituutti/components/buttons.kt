@@ -18,7 +18,7 @@ fun Pane.nonFocusableToggleButton(
         button.toggleGroup = group
         // Key read by tornadofx's ToggleGroup.selectedValueProperty(), which playerFragment still uses.
         button.properties["tornadofx.toggleGroupValue"] = value
-        button.styleClass.add(Style.button.name)
+        button.styleClass.add(Style.button)
         button.isSelected = selectFirst
         button.isFocusTraversable = false
         button.op()
@@ -29,7 +29,7 @@ fun Pane.nonFocusableToggleButton(
 
 fun Pane.nonFocusableButton(text: String = "", graphic: Node? = null, op: Button.() -> Unit = {}): Button {
     val button = Button(text, graphic).also { button ->
-        button.styleClass.add(Style.button.name)
+        button.styleClass.add(Style.button)
         button.isFocusTraversable = false
         button.op()
     }
