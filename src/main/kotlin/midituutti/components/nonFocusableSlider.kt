@@ -1,8 +1,7 @@
 package midituutti.components
 
-import javafx.event.EventTarget
 import javafx.scene.control.Slider
-import tornadofx.attachTo
+import javafx.scene.layout.Pane
 
 class NonFocusableSlider : Slider() {
     override fun requestFocus() {
@@ -10,11 +9,16 @@ class NonFocusableSlider : Slider() {
     }
 }
 
-fun EventTarget.nonFocusableSlider(
+fun Pane.nonFocusableSlider(
     min: Number? = null,
     max: Number? = null,
     op: Slider.() -> Unit = {}
-) = NonFocusableSlider().attachTo(this, op) {
-    if (min != null) it.min = min.toDouble()
-    if (max != null) it.max = max.toDouble()
+): NonFocusableSlider {
+    val slider = NonFocusableSlider().also { slider ->
+        if (min != null) slider.min = min.toDouble()
+        if (max != null) slider.max = max.toDouble()
+        slider.op()
+    }
+    children.add(slider)
+    return slider
 }

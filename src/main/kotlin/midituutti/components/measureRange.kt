@@ -8,23 +8,16 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
-import javafx.event.EventTarget
 import javafx.scene.Node
 import javafx.scene.control.Slider
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
 import midituutti.BidirectionalBridge
 import midituutti.Style
 import midituutti.bindBidirectional
 import midituutti.style
-import tornadofx.action
-import tornadofx.hbox
-import tornadofx.hgrow
-import tornadofx.minusAssign
-import tornadofx.mutateOnChange
-import tornadofx.onChange
-import tornadofx.plusAssign
-import tornadofx.singleAssign
-import tornadofx.vbox
 import kotlin.math.roundToInt
 
 interface MeasureSlider {
@@ -33,35 +26,35 @@ interface MeasureSlider {
     fun setBounds(bounds: Pair<Int, Int>?)
 }
 
-fun EventTarget.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
-    var theSlider: Slider by singleAssign()
+fun Pane.measureSlider(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureSlider {
+    lateinit var theSlider: Slider
     val value = SimpleIntegerProperty(1)
 
-    hbox {
-        style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
+    val box = HBox().also { box ->
+        box.style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
 
-        nonFocusableButton("<") {
+        box.nonFocusableButton("<") {
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
-            action {
-                value.minusAssign(1)
-            }
+            setOnAction { value.value -= 1 }
         }
-        theSlider = nonFocusableSlider(1, 100) {
-            hgrow = Priority.ALWAYS
+        theSlider = box.nonFocusableSlider(1, 100) {
             style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
         }
-        nonFocusableButton(">") {
+        HBox.setHgrow(theSlider, Priority.ALWAYS)
+        box.nonFocusableButton(">") {
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
-            action {
-                value.plusAssign(1)
-            }
+            setOnAction { value.value += 1 }
         }
 
-        op()
+        box.op()
     }
+    children.add(box)
 
     // Rounding to int seems result in a slider that snaps nicely onto int values
-    theSlider.valueProperty().mutateOnChange { d -> (d as Double).roundToInt() }
+    theSlider.valueProperty().addListener { _, _, newValue ->
+        val rounded = newValue.toDouble().roundToInt()
+        if (rounded.toDouble() != newValue.toDouble()) theSlider.value = rounded.toDouble()
+    }
     theSlider.valueProperty().bindBidirectional(value)
 
     return object : MeasureSlider {
@@ -81,15 +74,16 @@ interface MeasureRangeControl {
     fun boundsProperty(): ObjectProperty<Pair<Int, Int>>
 }
 
-fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
-    var startSlider: MeasureSlider by singleAssign()
-    var endSlider: MeasureSlider by singleAssign()
+fun Pane.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() -> Unit = {}): MeasureRangeControl {
+    lateinit var startSlider: MeasureSlider
+    lateinit var endSlider: MeasureSlider
 
-    vbox {
-        startSlider = measureSlider(rootFontSize)
-        endSlider = measureSlider(rootFontSize)
-        op()
+    val box = VBox().also { box ->
+        startSlider = box.measureSlider(rootFontSize)
+        endSlider = box.measureSlider(rootFontSize)
+        box.op()
     }
+    children.add(box)
 
     val range = SimpleObjectProperty<Pair<Int, Int>>(null)
 
@@ -112,26 +106,22 @@ fun EventTarget.measureRangeControl(rootFontSize: DoubleProperty, op: Node.() ->
         }
     })
 
-    startSlider.valueProperty().onChange { value ->
-        run {
-            if (endSlider.valueProperty().value - value < 0) endSlider.valueProperty().value = value
-        }
+    startSlider.valueProperty().addListener { _, _, newValue ->
+        val v = newValue.toInt()
+        if (endSlider.valueProperty().value - v < 0) endSlider.valueProperty().value = v
     }
-    endSlider.valueProperty().onChange { value ->
-        run {
-            if (value - startSlider.valueProperty().value < 0) startSlider.valueProperty().value = value
-        }
+    endSlider.valueProperty().addListener { _, _, newValue ->
+        val v = newValue.toInt()
+        if (v - startSlider.valueProperty().value < 0) startSlider.valueProperty().value = v
     }
 
     val valueChanging = SimpleBooleanProperty(false)
     valueChanging.bind(startSlider.valueChangingProperty().or(endSlider.valueChangingProperty()))
 
     val bounds = SimpleObjectProperty<Pair<Int, Int>>()
-    bounds.onChange { newBounds ->
-        run {
-            startSlider.setBounds(newBounds)
-            endSlider.setBounds(newBounds)
-        }
+    bounds.addListener { _, _, newBounds ->
+        startSlider.setBounds(newBounds)
+        endSlider.setBounds(newBounds)
     }
 
     return object : MeasureRangeControl {

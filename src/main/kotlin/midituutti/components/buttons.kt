@@ -1,31 +1,38 @@
 package midituutti.components
 
-import javafx.event.EventTarget
 import javafx.scene.Node
 import javafx.scene.control.Button
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
+import javafx.scene.layout.Pane
 import midituutti.Style
-import tornadofx.addClass
-import tornadofx.button
-import tornadofx.togglebutton
 
-fun EventTarget.nonFocusableToggleButton(
+fun Pane.nonFocusableToggleButton(
     text: String? = null,
     group: ToggleGroup? = null,
     selectFirst: Boolean = false,
     value: Any? = null,
     op: ToggleButton.() -> Unit = {}
-) = togglebutton(text = text, group = group, selectFirst = selectFirst, value = value) {
-    addClass(Style.button)
-    isSelected = selectFirst
-    isFocusTraversable = false
-    op()
+): ToggleButton {
+    val button = ToggleButton(text).also { button ->
+        button.toggleGroup = group
+        // Key read by tornadofx's ToggleGroup.selectedValueProperty(), which playerFragment still uses.
+        button.properties["tornadofx.toggleGroupValue"] = value
+        button.styleClass.add(Style.button.name)
+        button.isSelected = selectFirst
+        button.isFocusTraversable = false
+        button.op()
+    }
+    children.add(button)
+    return button
 }
 
-fun EventTarget.nonFocusableButton(text: String = "", graphic: Node? = null, op: Button.() -> Unit = {}) =
-    button(text, graphic) {
-        addClass(Style.button)
-        isFocusTraversable = false
-        op()
+fun Pane.nonFocusableButton(text: String = "", graphic: Node? = null, op: Button.() -> Unit = {}): Button {
+    val button = Button(text, graphic).also { button ->
+        button.styleClass.add(Style.button.name)
+        button.isFocusTraversable = false
+        button.op()
     }
+    children.add(button)
+    return button
+}

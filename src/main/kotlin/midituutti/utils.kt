@@ -16,10 +16,7 @@ import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.ToggleButton
 import javafx.scene.input.MouseEvent
-import tornadofx.CssRule
-import tornadofx.onChange
-import tornadofx.seconds
-import tornadofx.stringBinding
+import javafx.util.Duration
 
 fun <T> ObservableValue<T>.nonNullStringBinding(vararg dependencies: Observable, op: (T) -> String): StringBinding =
     Bindings.createStringBinding({ op(value) }, this, *dependencies)
@@ -51,17 +48,15 @@ fun bindBidirectional(bridge: BidirectionalBridge) {
     bridge.rightSideObservables().forEach { p -> p.addListener(flaggedChangeListener(bridge::rightSideChanged)) }
 }
 
-fun nodeBlinker(node: Node, blinkPseudoClass: CssRule): BooleanProperty {
-    val javaFxPseudoClass = PseudoClass.getPseudoClass(blinkPseudoClass.name)
+fun nodeBlinker(node: Node, blinkPseudoClassName: String): BooleanProperty {
+    val javaFxPseudoClass = PseudoClass.getPseudoClass(blinkPseudoClassName)
     val timeline = Timeline(
-        KeyFrame(0.5.seconds, { node.pseudoClassStateChanged(javaFxPseudoClass, true) }),
-        KeyFrame(1.0.seconds, { node.pseudoClassStateChanged(javaFxPseudoClass, false) })
-    )
-    timeline.cycleCount = Animation.INDEFINITE
+        KeyFrame(Duration.seconds(0.5), { node.pseudoClassStateChanged(javaFxPseudoClass, true) }),
+        KeyFrame(Duration.seconds(1.0), { node.pseudoClassStateChanged(javaFxPseudoClass, false) })
+    ).also { timeline -> timeline.cycleCount = Animation.INDEFINITE }
 
-    val blink = SimpleBooleanProperty(false)
-    blink.onChange { blinkOn ->
-        run {
+    return SimpleBooleanProperty(false).also { blink ->
+        blink.addListener { _, _, blinkOn ->
             if (blinkOn) {
                 timeline.play()
             } else {
@@ -70,7 +65,6 @@ fun nodeBlinker(node: Node, blinkPseudoClass: CssRule): BooleanProperty {
             }
         }
     }
-    return blink
 }
 
 class RemStyle(private val list: MutableList<(Double) -> String>) {
@@ -94,11 +88,10 @@ class RemStyle(private val list: MutableList<(Double) -> String>) {
 
 fun Node.style(rootFontSize: DoubleProperty, op: RemStyle.() -> Unit = {}): RemStyle {
     val cssPropFunctions = mutableListOf<(Double) -> String>()
-    val remStyle = RemStyle(cssPropFunctions)
-    remStyle.run(op)
+    val remStyle = RemStyle(cssPropFunctions).also { remStyle -> remStyle.run(op) }
 
     val propBindings = cssPropFunctions.map { f ->
-        rootFontSize.stringBinding { f(it as Double) }
+        Bindings.createStringBinding({ f(rootFontSize.get()) }, rootFontSize)
     }.toTypedArray()
     styleProperty().bind(Bindings.concat(*propBindings))
 

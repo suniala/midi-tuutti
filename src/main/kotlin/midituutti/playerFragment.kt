@@ -130,7 +130,7 @@ class PlayerFragment : Fragment("Player") {
                                 addClass(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(measureRange.nonNullStringBinding { (s, e) -> "$s ‒ $e" })
-                                measureRangeBlink = nodeBlinker(this, Style.blink)
+                                measureRangeBlink = nodeBlinker(this, Style.blink.name)
                                 measureRangeBlink.bind(measureRangeChanging)
                             }
                         }
