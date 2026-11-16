@@ -2,31 +2,25 @@ package midituutti
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
-import javafx.event.EventTarget
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
+import javafx.scene.control.Label
 import javafx.scene.control.Slider
 import javafx.scene.control.ToggleButton
+import javafx.scene.control.Tooltip
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
+import javafx.util.Duration
 import midituutti.components.nonFocusableSlider
 import midituutti.components.nonFocusableToggleButton
 import midituutti.engine.ClickTrack
 import midituutti.engine.EngineTrack
 import midituutti.engine.MidiTrack
 import midituutti.engine.MixerChannel
-import tornadofx.Fragment
-import tornadofx.hbox
-import tornadofx.label
-import tornadofx.millis
-import tornadofx.mutateOnChange
-import tornadofx.onChange
-import tornadofx.singleAssign
-import tornadofx.spacer
-import tornadofx.tooltip
-import tornadofx.useMaxWidth
-import tornadofx.vbox
-import tornadofx.vgrow
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
@@ -58,108 +52,107 @@ private val shortcutsInOrder = listOf(
 
 private val trackShortcuts = supportedTracks.zip(shortcutsInOrder).toMap()
 
-private fun EventTarget.mixerSlider(
+private fun Pane.mixerSlider(
     rootFontSize: DoubleProperty,
     mixerChannelState: MixerChannel,
     enabled: Boolean,
-    shortcut: (String, () -> Unit) -> Unit,
     op: Node.() -> Unit = {}
 ): SliderProps {
-    var theSlider: Slider by singleAssign()
-    var solo: ToggleButton by singleAssign()
-    var muted: ToggleButton by singleAssign()
+    lateinit var theSlider: Slider
+    lateinit var solo: ToggleButton
+    lateinit var muted: ToggleButton
 
     val track = mixerChannelState.track
 
-    vbox {
-        isDisable = !enabled
-        alignment = Pos.CENTER
-        style(rootFontSize) {
+    VBox().also { box ->
+        box.isDisable = !enabled
+        box.alignment = Pos.CENTER
+        box.style(rootFontSize) {
             prop(spacing, 0.2)
             prop(
                 padding,
                 fun(rem: (Double) -> String): String = "${rem(0.1)} ${rem(0.1)} ${rem(0.4)} ${rem(0.1)}")
         }
 
-        label(
-            when (track) {
-                is MidiTrack -> "${track.channel}"
-                is ClickTrack -> "C"
-            }
-        ) {
-            style(rootFontSize) { prop(fontSize, 0.5) }
-        }
+        box.children.add(Label(when (track) {
+            is MidiTrack -> "${track.channel}"
+            is ClickTrack -> "C"
+        }).also { label ->
+            label.style(rootFontSize) { prop(fontSize, 0.5) }
+        })
 
-        solo = nonFocusableToggleButton("S") {
-            selectedProperty().value = mixerChannelState.solo
+        solo = box.nonFocusableToggleButton("S") {
+            isSelected = mixerChannelState.solo
 
-            useMaxWidth = true
+            maxWidth = Region.USE_COMPUTED_SIZE
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
             shortcut("Shift+${trackShortcuts.getValue(track).up}") { if (enabled) fire() }
         }
 
-        muted = nonFocusableToggleButton("M") {
-            selectedProperty().value = mixerChannelState.muted
+        muted = box.nonFocusableToggleButton("M") {
+            isSelected = mixerChannelState.muted
 
-            useMaxWidth = true
+            maxWidth = Region.USE_COMPUTED_SIZE
             style(rootFontSize) { prop(fontSize, Style.fontRemControlSliderButton) }
             shortcut("Shift+${trackShortcuts.getValue(track).down}") { if (enabled) fire() }
         }
 
-        theSlider = nonFocusableSlider(0.0, 2.0) {
+        theSlider = box.nonFocusableSlider(0.0, 2.0) {
             orientation = Orientation.VERTICAL
-            vgrow = Priority.ALWAYS
             style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
             shortcut(trackShortcuts.getValue(track).up) { if (enabled) value += 0.1 }
             shortcut(trackShortcuts.getValue(track).down) { if (enabled) value -= 0.1 }
         }
+        VBox.setVgrow(theSlider, Priority.ALWAYS)
 
-        op()
-    }
+        box.op()
+    }.also { children.add(it) }
 
     theSlider.value = 1.0
 
     // Round slider values to two decimals.
-    theSlider.valueProperty().mutateOnChange { d -> (d as Double * 100).roundToInt().toDouble() / 100.0 }
+    theSlider.valueProperty().addListener { _, _, newValue ->
+        val rounded = (newValue.toDouble() * 100).roundToInt() / 100.0
+        if (rounded != newValue.toDouble()) theSlider.value = rounded
+    }
 
     return SliderProps(theSlider.valueProperty(), solo.selectedProperty(), muted.selectedProperty())
 }
 
 @ExperimentalTime
-class MixerFragment : Fragment("Mixer") {
-    val rootFontSize: DoubleProperty by param()
-    val playerController: PlayerController by param()
-
-    override val root = hbox {
-        style(rootFontSize) {
+class MixerFragment(
+    private val rootFontSize: DoubleProperty,
+    private val playerController: PlayerController
+) {
+    val root: HBox = HBox().also { box ->
+        box.style(rootFontSize) {
             prop(padding, Style.padRemCommon)
         }
 
         supportedTracks.forEach { t ->
-            mixerSlider(
+            box.mixerSlider(
                 rootFontSize,
                 mixerChannelState = playerController.mixerChannelState(t),
-                enabled = playerController.song().tracks.contains(t),
-                shortcut = { c, a -> shortcut(c, a) }
+                enabled = playerController.song().tracks.contains(t)
             ) {
-                tooltip(trackInstruments(t)?.let {
+                Tooltip.install(this, Tooltip(trackInstruments(t)?.let {
                     it.joinToString("\n") { p -> if (p.first != null) "${p.first} ${p.second}" else p.second }
-                }) {
-                    showDelay = 50.millis
-                }
+                }).apply {
+                    showDelay = Duration.millis(50.0)
+                })
             }.run {
-                volume.onChange { f ->
-                    playerController.updateMixerChannel(t) { mc -> mc.copy(volumeAdjustment = f) }
+                volume.addListener { _, _, f ->
+                    playerController.updateMixerChannel(t) { mc -> mc.copy(volumeAdjustment = f.toDouble()) }
                 }
-                solo.onChange {
-                    playerController.updateMixerChannel(t) { mc -> mc.copy(solo = it) }
+                solo.addListener { _, _, v ->
+                    playerController.updateMixerChannel(t) { mc -> mc.copy(solo = v) }
                 }
-                muted.onChange {
-                    playerController.updateMixerChannel(t) { mc -> mc.copy(muted = it) }
+                muted.addListener { _, _, v ->
+                    playerController.updateMixerChannel(t) { mc -> mc.copy(muted = v) }
                 }
             }
 
-            spacer()
+            box.spacer()
         }
     }
 

@@ -14,8 +14,15 @@ import javafx.beans.value.ObservableValue
 import javafx.css.PseudoClass
 import javafx.event.EventHandler
 import javafx.scene.Node
+import javafx.scene.Scene
 import javafx.scene.control.ToggleButton
+import javafx.scene.input.KeyCombination
 import javafx.scene.input.MouseEvent
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.util.Duration
 
 fun <T> ObservableValue<T>.nonNullStringBinding(vararg dependencies: Observable, op: (T) -> String): StringBinding =
@@ -99,3 +106,22 @@ fun Node.style(rootFontSize: DoubleProperty, op: RemStyle.() -> Unit = {}): RemS
 }
 
 fun ToggleButton.preventDeselect(): EventHandler<MouseEvent> = EventHandler { e -> if (isSelected) e.consume() }
+
+/**
+ * Registers a scene accelerator once the node is part of a scene. Works even for nodes that
+ * never receive keyboard focus.
+ */
+fun Node.shortcut(combination: String, op: () -> Unit) {
+    val keyCombination = KeyCombination.valueOf(combination)
+    fun install(scene: Scene) {
+        scene.accelerators[keyCombination] = Runnable { op() }
+    }
+    sceneProperty().addListener { _, _, newScene -> if (newScene != null) install(newScene) }
+    if (scene != null) install(scene)
+}
+
+fun Pane.spacer(): Region =
+    Region().also { spacer ->
+        HBox.setHgrow(spacer, Priority.ALWAYS)
+        VBox.setVgrow(spacer, Priority.ALWAYS)
+    }.also { children.add(it) }

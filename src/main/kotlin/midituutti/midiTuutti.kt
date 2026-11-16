@@ -3,6 +3,7 @@ package midituutti
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.scene.Parent
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
@@ -12,7 +13,6 @@ import midituutti.engine.PlaybackEngine
 import tornadofx.App
 import tornadofx.Controller
 import tornadofx.FX
-import tornadofx.UIComponent
 import tornadofx.View
 import tornadofx.action
 import tornadofx.borderpane
@@ -40,14 +40,11 @@ class RootView : View("Midi-Tuutti") {
 
     private val playerController = tornadofx.find(PlayerController::class)
 
-    private val initialView =
+    private val initialView: Parent =
         if (rootViewController.initialFile.value != null) {
-            params
             playerController.load(rootViewController.initialFile.value)
-            newTabs()
-        } else find<StartView>()
-
-    private var currentView: UIComponent = initialView
+            newTabs().root
+        } else find<StartView>().root
 
     override val root = borderpane {
         top = menubar {
@@ -67,8 +64,7 @@ class RootView : View("Midi-Tuutti") {
                         playerController.load(selectedFile)
 
                         val tabsFragment = newTabs()
-                        currentView.replaceWith(tabsFragment)
-                        currentView = tabsFragment
+                        bottom = tabsFragment.root
                     }
                 }
                 separator()
@@ -76,16 +72,12 @@ class RootView : View("Midi-Tuutti") {
             }
         }
 
-        bottom = initialView.root
+        bottom = initialView
 
         shortcut("F11") { primaryStage.isFullScreen = true }
     }
 
-    private fun newTabs(): TabsFragment =
-        find(
-            TabsFragment::rootFontSize to rootFontSize,
-            TabsFragment::playerController to playerController
-        )
+    private fun newTabs(): TabsFragment = TabsFragment(rootFontSize, playerController)
 
 }
 
