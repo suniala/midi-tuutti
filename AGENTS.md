@@ -1,0 +1,25 @@
+# AGENTS.md
+
+MIDI player (midi-tuutti). Kotlin + vanilla JavaFX.
+
+## Build / verify
+
+- `./gradlew compileKotlin test` — compile + unit tests
+- `./gradlew run` — launch the UI (needs a display); pass a .mid file as arg to load it
+- `./gradlew jlink` — modular runtime image
+
+## UI conventions
+
+- Views are plain classes with a `val root: <Pane>` built in `also` blocks. Configure objects inside `x.also { y -> y.foo = ... }`, never `val x = Foo(); x.foo = ...`.
+- Builders live in `utils.kt`: `Pane.hbox/vbox/label/pane/spacer`, `Node.style(rootFontSize) { prop(...) }` (rem-based inline styles), `Node.shortcut`, `ToggleGroup.selectedValueProperty<T>()`.
+- Components in `components/`: `nonFocusableButton`, `nonFocusableToggleButton`, `nonFocusableSlider`, `measureSlider`, `measureRangeControl` — all `Pane` extensions that add themselves to `children`.
+- Styles: `Style.css` next to `Style.kt` (loaded via `Style.cssUrl`); class names are `const val`s in `object Style`. Pseudo-classes via `nodeBlinker(node, Style.blink)`.
+- Toggle values are stored in `toggle.properties[TOGGLE_GROUP_VALUE_KEY]`; `selectedValueProperty()` is bidirectional (setting it selects the matching toggle).
+- `Node.shortcut` installs a **scene-level event filter**, not an accelerator — accelerators lose to TabPane's arrow-key handling.
+- Playback events: `PlayerController.addUiEventListener { }` (already marshalled to the FX thread via `Platform.runLater`). No event bus.
+
+## Gotchas hit during migration
+
+- `ObservableList.add(a, b)` is `add(index, element)` — use `addAll(a, b)` for style classes.
+- JavaFX 11 `Toggle` has no `value` property; `isUseMaxWidth`/`useMaxWidth` don't resolve as Kotlin properties — use `maxWidth = Region.USE_COMPUTED_SIZE`.
+- UI can't be smoke-tested headless; verify visually with `./gradlew run`.
