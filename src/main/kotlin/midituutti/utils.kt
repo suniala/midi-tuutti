@@ -39,6 +39,13 @@ fun <T> ToggleGroup.selectedValueProperty(): ObjectProperty<T> {
     selectedToggleProperty().addListener { _, _, toggle ->
         prop.value = toggle?.properties?.get(TOGGLE_GROUP_VALUE_KEY) as T?
     }
+    // Write back: setting the property selects the toggle holding that value.
+    prop.addListener { _, _, newValue ->
+        val toggleToSelect = toggles.find { it.properties?.get(TOGGLE_GROUP_VALUE_KEY) == newValue }
+        if (toggleToSelect != null && toggleToSelect != selectedToggle) {
+            selectToggle(toggleToSelect)
+        }
+    }
     return prop
 }
 
