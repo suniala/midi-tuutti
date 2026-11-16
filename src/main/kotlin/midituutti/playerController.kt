@@ -1,5 +1,6 @@
 package midituutti
 
+import javafx.application.Platform
 import midituutti.engine.ClickTrack
 import midituutti.engine.EngineTrack
 import midituutti.engine.MidiTrack
@@ -9,15 +10,11 @@ import midituutti.engine.PlaybackEvent
 import midituutti.engine.Player
 import midituutti.engine.SongStructure
 import midituutti.midi.Tempo
-import tornadofx.Controller
-import tornadofx.FXEvent
 import java.io.File
 import kotlin.time.ExperimentalTime
 
-class UiPlaybackEvent(val pe: PlaybackEvent) : FXEvent()
-
 @ExperimentalTime
-class PlayerController : Controller() {
+class PlayerController {
     private var player: Player? = null
 
     private var song: SongStructure? = null
@@ -32,6 +29,12 @@ class PlayerController : Controller() {
             )
             .associateBy { it.track }
 
+    private val uiEventListeners = mutableListOf<(PlaybackEvent) -> Unit>()
+
+    fun addUiEventListener(listener: (PlaybackEvent) -> Unit) {
+        uiEventListeners.add(listener)
+    }
+
     fun load(file: File) {
         val playerInitialState = PlaybackEngine.createPlayer(file.absolutePath, null, null)
 
@@ -41,8 +44,10 @@ class PlayerController : Controller() {
         // Initialize the engine to correspond with the mixer's initial state
         updateEngineMixer(mixerState)
 
-        // Pass events from the player thread to the ui thread via TornadoFX EventBus
-        player().addPlaybackListener(fun(event: PlaybackEvent): Unit = fire(UiPlaybackEvent(event)))
+        // Pass events from the player thread to the ui thread
+        player().addPlaybackListener { event ->
+            Platform.runLater { uiEventListeners.forEach { it(event) } }
+        }
 
         song = playerInitialState.player.song
     }

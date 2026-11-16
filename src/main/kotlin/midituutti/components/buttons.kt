@@ -6,6 +6,7 @@ import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Pane
 import midituutti.Style
+import midituutti.TOGGLE_GROUP_VALUE_KEY
 
 fun Pane.nonFocusableToggleButton(
     text: String? = null,
@@ -16,8 +17,8 @@ fun Pane.nonFocusableToggleButton(
 ): ToggleButton {
     val button = ToggleButton(text).also { button ->
         button.toggleGroup = group
-        // Key read by tornadofx's ToggleGroup.selectedValueProperty(), which playerFragment still uses.
-        button.properties["tornadofx.toggleGroupValue"] = value
+        // Read back by ToggleGroup.selectedValueProperty() in utils.kt.
+        button.properties[TOGGLE_GROUP_VALUE_KEY] = value
         button.styleClass.add(Style.button)
         button.isSelected = selectFirst
         button.isFocusTraversable = false

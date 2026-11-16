@@ -8,7 +8,10 @@ import javafx.geometry.Pos
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.input.MouseEvent
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import midituutti.components.measureRangeControl
 import midituutti.components.nonFocusableButton
 import midituutti.components.nonFocusableToggleButton
@@ -16,20 +19,6 @@ import midituutti.engine.MeasurePlaybackEvent
 import midituutti.engine.PlayEvent
 import midituutti.engine.TempoEvent
 import midituutti.midi.Tempo
-import tornadofx.Fragment
-import tornadofx.action
-import tornadofx.addClass
-import tornadofx.hbox
-import tornadofx.hgrow
-import tornadofx.label
-import tornadofx.onChange
-import tornadofx.pane
-import tornadofx.selectedValueProperty
-import tornadofx.singleAssign
-import tornadofx.spacer
-import tornadofx.stringBinding
-import tornadofx.useMaxWidth
-import tornadofx.vbox
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 
@@ -42,23 +31,22 @@ private enum class TempoAdjustment {
 }
 
 /**
- * Our player component is a fragment as we want to create a new instance for each file as
- * this makes initialisation easier.
+ * Our player component is created anew for each file as this makes initialisation easier.
  */
 @ExperimentalTime
-class PlayerFragment : Fragment("Player") {
-    val rootFontSize: DoubleProperty by param()
-    val playerController: PlayerController by param()
-
+class PlayerFragment(
+    private val rootFontSize: DoubleProperty,
+    private val playerController: PlayerController
+) {
     private val song = SimpleObjectProperty(playerController.song())
 
     private val measureRangeChanging = SimpleBooleanProperty(false)
     private var measureRangeBounds = SimpleObjectProperty(Pair(1, song.value.measures.size))
     private val measureRange = SimpleObjectProperty(Pair(1, song.value.measures.size))
 
-    private var measureRangeBlink: BooleanProperty by singleAssign()
+    private lateinit var measureRangeBlink: BooleanProperty
 
-    private var playButton: ToggleButton by singleAssign()
+    private lateinit var playButton: ToggleButton
     private val songTempo = SimpleObjectProperty(song.value.measures.first().initialTempo)
     private val tempoMultiplier = SimpleObjectProperty(1.0)
     private val constantTempo = SimpleObjectProperty(songTempo.value)
@@ -91,11 +79,11 @@ class PlayerFragment : Fragment("Player") {
         }
     }
 
-    override val root = vbox {
-        style(rootFontSize) { prop(padding, Style.padRemCommon) }
+    val root: VBox = VBox().also { root ->
+        root.style(rootFontSize) { prop(padding, Style.padRemCommon) }
 
-        vbox {
-            addClass(Style.display)
+        root.vbox {
+            styleClass.add(Style.display)
 
             hbox {
                 spacer()
@@ -105,13 +93,13 @@ class PlayerFragment : Fragment("Player") {
 
                     vbox {
                         label("position") {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
                         label {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
-                            textProperty().bind(currentMeasure.stringBinding { m ->
+                            textProperty().bind(currentMeasure.nonNullStringBinding { m ->
                                 "$m".padStart(3, ' ')
                             })
                         }
@@ -119,15 +107,15 @@ class PlayerFragment : Fragment("Player") {
 
                     hbox {
                         vbox {
-                            hgrow = Priority.ALWAYS
+                            HBox.setHgrow(this, Priority.ALWAYS)
                             alignment = Pos.TOP_LEFT
 
                             label("play range") {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
                             label {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(measureRange.nonNullStringBinding { (s, e) -> "$s ‒ $e" })
                                 measureRangeBlink = nodeBlinker(this, Style.blink)
@@ -135,15 +123,15 @@ class PlayerFragment : Fragment("Player") {
                             }
                         }
                         vbox {
-                            hgrow = Priority.ALWAYS
+                            HBox.setHgrow(this, Priority.ALWAYS)
                             alignment = Pos.TOP_RIGHT
 
                             label("measures") {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
                             label {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(song.nonNullStringBinding { s ->
                                     s.measures.size.let { c -> "$c".padStart(3, ' ') }
@@ -154,7 +142,7 @@ class PlayerFragment : Fragment("Player") {
                 }
 
                 pane {
-                    addClass(Style.displaySectionSeparator)
+                    styleClass.add(Style.displaySectionSeparator)
                     style(rootFontSize) {
                         prop(
                             borderWidth,
@@ -169,29 +157,29 @@ class PlayerFragment : Fragment("Player") {
                         prop(minWidth, Style.widthTimeSigHead)
                     }
                     label("timesig") {
-                        addClass(Style.displayFont)
+                        styleClass.add(Style.displayFont)
                         style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                     }
                     vbox {
-                        addClass(Style.timeSignatureValue)
+                        styleClass.add(Style.timeSignatureValue)
                         hbox {
                             spacer()
                             label {
-                                useMaxWidth = true
-                                addClass(Style.displayFont, Style.timeSignatureValue)
+                                maxWidth = Region.USE_COMPUTED_SIZE
+                                styleClass.addAll(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
                                 textProperty().bind(currentTimeSignature.nonNullStringBinding { it.beats.toString() })
                             }
                             spacer()
                         }
                         pane {
-                            addClass(Style.timeSignatureSeparator)
+                            styleClass.add(Style.timeSignatureSeparator)
                         }
                         hbox {
                             spacer()
                             label("4") {
-                                useMaxWidth = true
-                                addClass(Style.displayFont, Style.timeSignatureValue)
+                                maxWidth = Region.USE_COMPUTED_SIZE
+                                styleClass.addAll(Style.displayFont, Style.timeSignatureValue)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplayTimeSignature) }
                                 textProperty().bind(currentTimeSignature.nonNullStringBinding { it.unit.toString() })
                             }
@@ -202,15 +190,15 @@ class PlayerFragment : Fragment("Player") {
                     spacer()
 
                     vbox {
-                        hgrow = Priority.ALWAYS
+                        HBox.setHgrow(this, Priority.ALWAYS)
                         alignment = Pos.TOP_LEFT
 
                         label("next") {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
                         label {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             textProperty().bind(currentMeasure.nonNullStringBinding { m ->
                                 song.value.let { s ->
@@ -223,7 +211,7 @@ class PlayerFragment : Fragment("Player") {
                 }
 
                 pane {
-                    addClass(Style.displaySectionSeparator)
+                    styleClass.add(Style.displaySectionSeparator)
                     style(rootFontSize) {
                         prop(
                             borderWidth,
@@ -237,11 +225,11 @@ class PlayerFragment : Fragment("Player") {
 
                     vbox {
                         label("bpm") {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                         }
                         label {
-                            addClass(Style.displayFont)
+                            styleClass.add(Style.displayFont)
                             style(rootFontSize) { prop(fontSize, Style.fontRemDisplayMain) }
                             textProperty().bind(adjustedTempo.nonNullStringBinding { t ->
                                 t.bpm.roundToInt().toString().padStart(3, ' ')
@@ -251,29 +239,29 @@ class PlayerFragment : Fragment("Player") {
 
                     hbox {
                         vbox {
-                            hgrow = Priority.ALWAYS
+                            HBox.setHgrow(this, Priority.ALWAYS)
                             alignment = Pos.TOP_LEFT
 
                             label("adjust") {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
                             label {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(tempoMultiplier.nonNullStringBinding { "${(it * 100).roundToInt()} %" })
                             }
                         }
                         vbox {
-                            hgrow = Priority.ALWAYS
+                            HBox.setHgrow(this, Priority.ALWAYS)
                             alignment = Pos.TOP_RIGHT
 
                             label("song tempo") {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                             }
                             label {
-                                addClass(Style.displayFont)
+                                styleClass.add(Style.displayFont)
                                 style(rootFontSize) { prop(fontSize, Style.fontRemDisplaySub) }
                                 textProperty().bind(songTempo.nonNullStringBinding { t ->
                                     t.bpm.roundToInt().toString().plus(" bpm")
@@ -287,7 +275,7 @@ class PlayerFragment : Fragment("Player") {
             }
         }
 
-        hbox {
+        root.hbox {
             style(rootFontSize) { prop(padding, Style.padRemCommon) }
 
             spacer()
@@ -309,40 +297,32 @@ class PlayerFragment : Fragment("Player") {
                             style(rootFontSize) { prop(spacing, Style.spacingRemCommon) }
 
                             playButton = nonFocusableToggleButton("Play") {
-                                useMaxWidth = true
+                                maxWidth = Region.USE_COMPUTED_SIZE
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
                                 shortcut("Space") { fire() }
-                                action {
-                                    playerController.togglePlay()
-                                }
+                                setOnAction { playerController.togglePlay() }
                             }
 
                             nonFocusableButton("<<") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("Home")
-                                action {
-                                    playerController.jump { 0 }
-                                }
+                                shortcut("Home") { fire() }
+                                setOnAction { playerController.jump { 0 } }
                             }
                             nonFocusableButton("<") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("Left")
-                                action {
-                                    playerController.jump { m -> m - 1 }
-                                }
+                                shortcut("Left") { fire() }
+                                setOnAction { playerController.jump { m -> m - 1 } }
                             }
                             nonFocusableButton(">") {
                                 style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                shortcut("Right")
-                                action {
-                                    playerController.jump { m -> m + 1 }
-                                }
+                                shortcut("Right") { fire() }
+                                setOnAction { playerController.jump { m -> m + 1 } }
                             }
                         }
                     }
 
                     pane {
-                        addClass(Style.controlSectionSeparator)
+                        styleClass.add(Style.controlSectionSeparator)
                     }
 
                     vbox {
@@ -372,25 +352,19 @@ class PlayerFragment : Fragment("Player") {
 
                                 nonFocusableButton("‒") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                    shortcut("Down")
-                                    action {
-                                        adjustCurrentTempoMode(TempoAdjustment.DECREASE)
-                                    }
+                                    shortcut("Down") { fire() }
+                                    setOnAction { adjustCurrentTempoMode(TempoAdjustment.DECREASE) }
                                 }
                                 nonFocusableButton("O") {
-                                    hgrow = Priority.ALWAYS
-                                    useMaxWidth = true
+                                    HBox.setHgrow(this, Priority.ALWAYS)
+                                    maxWidth = Region.USE_COMPUTED_SIZE
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                    action {
-                                        adjustCurrentTempoMode(TempoAdjustment.RESET)
-                                    }
+                                    setOnAction { adjustCurrentTempoMode(TempoAdjustment.RESET) }
                                 }
                                 nonFocusableButton("+") {
                                     style(rootFontSize) { prop(fontSize, Style.fontRemControlButton) }
-                                    shortcut("Up")
-                                    action {
-                                        adjustCurrentTempoMode(TempoAdjustment.INCREASE)
-                                    }
+                                    shortcut("Up") { fire() }
+                                    setOnAction { adjustCurrentTempoMode(TempoAdjustment.INCREASE) }
                                 }
                             }
                         }
@@ -411,41 +385,39 @@ class PlayerFragment : Fragment("Player") {
             spacer()
         }
 
-        shortcut("Ctrl+Space") {
+        root.shortcut("Ctrl+Space") {
             tempoMode.value = when (tempoMode.value as TempoMode) {
                 TempoMode.CONSTANT -> TempoMode.MULTIPLIER
                 TempoMode.MULTIPLIER -> TempoMode.CONSTANT
             }
         }
 
-        subscribe<UiPlaybackEvent> { event ->
-            event.pe.let { playbackEvent ->
-                when (playbackEvent) {
-                    is PlayEvent -> playButton.selectedProperty().value = playbackEvent.playing
-                    is MeasurePlaybackEvent -> {
-                        currentMeasure.value = playbackEvent.measure
-                        currentTimeSignature.value = playbackEvent.timeSignature
-                    }
+        playerController.addUiEventListener { playbackEvent ->
+            when (playbackEvent) {
+                is PlayEvent -> playButton.isSelected = playbackEvent.playing
+                is MeasurePlaybackEvent -> {
+                    currentMeasure.value = playbackEvent.measure
+                    currentTimeSignature.value = playbackEvent.timeSignature
+                }
 
-                    is TempoEvent -> {
-                        songTempo.value = playbackEvent.tempo
-                        adjustedTempo.value = playbackEvent.adjustedTempo
-                    }
+                is TempoEvent -> {
+                    songTempo.value = playbackEvent.tempo
+                    adjustedTempo.value = playbackEvent.adjustedTempo
                 }
             }
         }
 
-        tempoMultiplier.onChange { multiplier ->
-            updateTempoModifier(tempoMode.value, multiplier as Double, constantTempo.value)
+        tempoMultiplier.addListener { _, _, multiplier ->
+            updateTempoModifier(tempoMode.value, multiplier.toDouble(), constantTempo.value)
         }
-        constantTempo.onChange { tempo ->
+        constantTempo.addListener { _, _, tempo ->
             updateTempoModifier(tempoMode.value, tempoMultiplier.value, tempo as Tempo)
         }
-        tempoMode.onChange { mode ->
+        tempoMode.addListener { _, _, mode ->
             constantTempo.value = songTempo.value as Tempo
             updateTempoModifier(mode as TempoMode, tempoMultiplier.value, constantTempo.value)
         }
 
-        measureRange.onChange { range -> playerController.resetMeasureRange(range as Pair<Int, Int>) }
+        measureRange.addListener { _, _, range -> playerController.resetMeasureRange(range as Pair<Int, Int>) }
     }
 }

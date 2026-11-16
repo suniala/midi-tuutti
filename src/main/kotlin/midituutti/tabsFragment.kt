@@ -4,8 +4,6 @@ import javafx.beans.property.DoubleProperty
 import javafx.geometry.Side
 import javafx.scene.control.Tab
 import javafx.scene.control.TabPane
-import tornadofx.FX
-import tornadofx.find
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -15,12 +13,7 @@ class TabsFragment(
 ) {
     private val mixer = MixerFragment(rootFontSize, playerController)
 
-    // PlayerFragment is still a tornadofx component until step 4.
-    private val player = find<PlayerFragment>(
-        FX.defaultScope,
-        PlayerFragment::rootFontSize to rootFontSize,
-        PlayerFragment::playerController to playerController
-    )
+    private val player = PlayerFragment(rootFontSize, playerController)
 
     val root: TabPane = TabPane().also { tabs ->
         tabs.side = Side.LEFT

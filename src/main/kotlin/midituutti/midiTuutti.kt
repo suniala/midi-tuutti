@@ -38,7 +38,7 @@ class RootView : View("Midi-Tuutti") {
 
     private val rootViewController = find<RootViewController>()
 
-    private val playerController = tornadofx.find(PlayerController::class)
+    private val playerController = PlayerController()
 
     private val initialView: Parent =
         if (rootViewController.initialFile.value != null) {
