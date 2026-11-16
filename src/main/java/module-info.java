@@ -4,7 +4,6 @@ module midituutti {
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.graphics;
-    requires tornadofx;
 
     requires javamididecoder;
 

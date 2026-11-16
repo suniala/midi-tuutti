@@ -1,137 +1,115 @@
 package midituutti
 
+import javafx.application.Application
+import javafx.application.Platform
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.Parent
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
+import javafx.scene.Scene
+import javafx.scene.control.Label
+import javafx.scene.control.Menu
+import javafx.scene.control.MenuBar
+import javafx.scene.control.MenuItem
+import javafx.scene.control.SeparatorMenuItem
 import javafx.scene.input.KeyCombination
+import javafx.scene.layout.BorderPane
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine
-import tornadofx.App
-import tornadofx.Controller
-import tornadofx.FX
-import tornadofx.View
-import tornadofx.action
-import tornadofx.borderpane
-import tornadofx.find
-import tornadofx.item
-import tornadofx.label
-import tornadofx.launch
-import tornadofx.menu
-import tornadofx.menubar
-import tornadofx.separator
 import java.io.File
 import kotlin.time.ExperimentalTime
 
-class StartView : View("Start") {
-    override val root = borderpane {
-        center = label("Please open a midi file")
-    }
+class StartView {
+    val root: BorderPane = BorderPane(Label("Please open a midi file"))
 }
 
 @ExperimentalTime
-class RootView : View("Midi-Tuutti") {
+class RootView(
+    private val stage: Stage,
+    private val lastDir: SimpleObjectProperty<File?>,
+    initialFile: File?
+) {
     val rootFontSize: DoubleProperty = SimpleDoubleProperty(50.0)
-
-    private val rootViewController = find<RootViewController>()
 
     private val playerController = PlayerController()
 
     private val initialView: Parent =
-        if (rootViewController.initialFile.value != null) {
-            playerController.load(rootViewController.initialFile.value)
+        if (initialFile != null) {
+            playerController.load(initialFile)
             newTabs().root
-        } else find<StartView>().root
+        } else StartView().root
 
-    override val root = borderpane {
-        top = menubar {
-            menu("File") {
-                item("Open", "Shortcut+O").action {
-                    val fileChooser = FileChooser().apply {
-                        title = "Open Midi File"
-                        initialDirectory = rootViewController.lastDir.value
-                        extensionFilters + listOf(
-                            FileChooser.ExtensionFilter("Midi Files", "*.mid"),
-                            FileChooser.ExtensionFilter("All Files", "*.*")
-                        )
-                    }
-                    val selectedFile = fileChooser.showOpenDialog(primaryStage)
-                    if (selectedFile != null) {
-                        rootViewController.lastDir.value = selectedFile.parentFile
-                        playerController.load(selectedFile)
+    val root: BorderPane = BorderPane().also { root ->
+        root.top = MenuBar().also { menuBar ->
+            menuBar.menus.add(Menu("File").also { menu ->
+                menu.items.add(MenuItem("Open").also { openItem ->
+                    openItem.accelerator = KeyCombination.keyCombination("Shortcut+O")
+                    openItem.setOnAction {
+                        val fileChooser = FileChooser().apply {
+                            title = "Open Midi File"
+                            initialDirectory = lastDir.value
+                            extensionFilters.addAll(
+                                FileChooser.ExtensionFilter("Midi Files", "*.mid"),
+                                FileChooser.ExtensionFilter("All Files", "*.*")
+                            )
+                        }
+                        val selectedFile = fileChooser.showOpenDialog(stage)
+                        if (selectedFile != null) {
+                            lastDir.value = selectedFile.parentFile
+                            playerController.load(selectedFile)
 
-                        val tabsFragment = newTabs()
-                        bottom = tabsFragment.root
+                            root.bottom = newTabs().root
+                        }
                     }
-                }
-                separator()
-                item("Quit")
-            }
+                })
+                menu.items.add(SeparatorMenuItem())
+                menu.items.add(MenuItem("Quit").also { quitItem ->
+                    quitItem.setOnAction { Platform.exit() }
+                })
+            })
         }
 
-        bottom = initialView
+        root.bottom = initialView
 
-        shortcut("F11") { primaryStage.isFullScreen = true }
+        root.shortcut("F11") { stage.isFullScreen = true }
     }
 
     private fun newTabs(): TabsFragment = TabsFragment(rootFontSize, playerController)
-
-}
-
-class RootViewController : Controller() {
-    val lastDir = SimpleObjectProperty<File>()
-    val initialFile = SimpleObjectProperty<File>()
 }
 
 @ExperimentalTime
-class MidiTuuttiApp : App() {
-    override val primaryView = RootView::class
-
+class MidiTuuttiApp : Application() {
     private val preferredHeight = 440.0
     private val preferredWidth = preferredHeight * 1.6
-
-    init {
-        FX.layoutDebuggerShortcut = KeyCodeCombination(
-            KeyCode.D,
-            KeyCombination.ModifierValue.DOWN,
-            KeyCombination.ModifierValue.DOWN,
-            KeyCombination.ModifierValue.UP,
-            KeyCombination.ModifierValue.UP,
-            KeyCombination.ModifierValue.UP
-        )
-    }
 
     override fun start(stage: Stage) {
         PlaybackEngine.initialize()
 
-        val rootViewController = find<RootViewController>()
-        rootViewController.lastDir.value = System.getProperty("midituutti.initialDir")?.let { File(it) }
-        rootViewController.initialFile.value = parameters.raw.firstOrNull()?.let { path ->
+        val lastDir = SimpleObjectProperty(System.getProperty("midituutti.initialDir")?.let { File(it) })
+        val initialFile = parameters.raw.firstOrNull()?.let { path ->
             val file = File(path)
             if (file.exists() && file.isFile && file.canRead()) file
             else null
         }
 
-        with(stage) {
-            super.start(this)
+        val rootView = RootView(stage, lastDir, initialFile)
+        val scene = Scene(rootView.root)
+        rootView.rootFontSize.bind(scene.heightProperty().divide(19.0))
+
+        stage.apply {
+            title = "Midi-Tuutti"
+            this.scene = scene
             scene.stylesheets.add(Style.cssUrl)
-
-            val view = find<RootView>()
-            view.rootFontSize.bind(scene.heightProperty().divide(19.0))
-
-            // Set dimensions after view has been initialized so as to make view contents scale according to
-            // window dimensions.
             height = preferredHeight
             width = preferredWidth
             isResizable = true
+            show()
         }
     }
 }
 
 @ExperimentalTime
 fun main(args: Array<String>) {
-    launch<MidiTuuttiApp>(args)
+    Application.launch(MidiTuuttiApp::class.java, *args)
 }

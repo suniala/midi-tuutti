@@ -68,14 +68,11 @@ See [Java Sound API: Soundbanks](https://www.oracle.com/technetwork/java/soundba
 * Skip empty measures (ones without any notes) at the beginning of a song
 
 ## Development
-Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/), 
-[TornadoFX](https://github.com/edvin/tornadofx) and [java-midi-decoder](https://github.com/suniala/java-midi-decoder).
+Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/) and [java-midi-decoder](https://github.com/suniala/java-midi-decoder).
 
 Start with: `./gradlew run`.
 
 Enable engine trace logging with: `-Dmidituutti.engine.trace=true`
-
-TornadoFX layout debugger: `ctrl+shift+d`
 
 Build a jar with: `./gradlew build`
 
