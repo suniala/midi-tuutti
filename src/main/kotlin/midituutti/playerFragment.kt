@@ -20,7 +20,6 @@ import midituutti.engine.PlayEvent
 import midituutti.engine.TempoEvent
 import midituutti.midi.Tempo
 import kotlin.math.roundToInt
-import kotlin.time.ExperimentalTime
 
 private enum class TempoMode {
     CONSTANT, MULTIPLIER
@@ -33,7 +32,6 @@ private enum class TempoAdjustment {
 /**
  * Our player component is created anew for each file as this makes initialisation easier.
  */
-@ExperimentalTime
 class PlayerFragment(
     private val rootFontSize: DoubleProperty,
     private val playerController: PlayerController

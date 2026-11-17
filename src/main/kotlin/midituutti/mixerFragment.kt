@@ -22,7 +22,6 @@ import midituutti.engine.EngineTrack
 import midituutti.engine.MidiTrack
 import midituutti.engine.MixerChannel
 import kotlin.math.roundToInt
-import kotlin.time.ExperimentalTime
 
 private data class TrackShortCuts(val up: String, val down: String)
 
@@ -119,7 +118,6 @@ private fun Pane.mixerSlider(
     return SliderProps(theSlider.valueProperty(), solo.selectedProperty(), muted.selectedProperty())
 }
 
-@ExperimentalTime
 class MixerFragment(
     private val rootFontSize: DoubleProperty,
     private val playerController: PlayerController

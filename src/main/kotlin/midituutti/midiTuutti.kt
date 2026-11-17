@@ -18,13 +18,11 @@ import javafx.stage.FileChooser
 import javafx.stage.Stage
 import midituutti.engine.PlaybackEngine
 import java.io.File
-import kotlin.time.ExperimentalTime
 
 class StartView {
     val root: BorderPane = BorderPane(Label("Please open a midi file"))
 }
 
-@ExperimentalTime
 class RootView(
     private val stage: Stage,
     private val lastDir: SimpleObjectProperty<File?>,
@@ -78,7 +76,6 @@ class RootView(
     private fun newTabs(): TabsFragment = TabsFragment(rootFontSize, playerController)
 }
 
-@ExperimentalTime
 class MidiTuuttiApp : Application() {
     private val preferredHeight = 440.0
     private val preferredWidth = preferredHeight * 1.6
@@ -109,7 +106,6 @@ class MidiTuuttiApp : Application() {
     }
 }
 
-@ExperimentalTime
 fun main(args: Array<String>) {
     Application.launch(MidiTuuttiApp::class.java, *args)
 }

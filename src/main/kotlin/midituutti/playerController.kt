@@ -11,9 +11,7 @@ import midituutti.engine.Player
 import midituutti.engine.SongStructure
 import midituutti.midi.Tempo
 import java.io.File
-import kotlin.time.ExperimentalTime
 
-@ExperimentalTime
 class PlayerController {
     private var player: Player? = null
 

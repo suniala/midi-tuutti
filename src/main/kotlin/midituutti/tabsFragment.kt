@@ -4,9 +4,7 @@ import javafx.beans.property.DoubleProperty
 import javafx.geometry.Side
 import javafx.scene.control.Tab
 import javafx.scene.control.TabPane
-import kotlin.time.ExperimentalTime
 
-@ExperimentalTime
 class TabsFragment(
     private val rootFontSize: DoubleProperty,
     private val playerController: PlayerController

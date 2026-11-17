@@ -14,15 +14,12 @@ import midituutti.midi.createDefaultSynthesizerPort
 import midituutti.midi.openFile
 import kotlin.math.roundToInt
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-@ExperimentalTime
-fun Duration.millisPart(): Long = this.toLongMilliseconds()
+fun Duration.millisPart(): Long = this.inWholeMilliseconds
 
-@ExperimentalTime
-fun Duration.nanosPart(): Int = (this.toLongNanoseconds() - (this.millisPart() * 1000 * 1000)).toInt()
+fun Duration.nanosPart(): Int = (this.inWholeNanoseconds - (this.millisPart() * 1000 * 1000)).toInt()
 
 sealed class EngineEvent {
     abstract fun ticks(): Tick
@@ -82,7 +79,6 @@ private interface PlayerListener {
     fun atMeasureStart(measure: Int, timeSignature: TimeSignature)
 }
 
-@ExperimentalTime
 private class MidiPlayer(
     val song: SongStructure,
     var tempoModifier: (Tempo) -> Tempo,
@@ -285,7 +281,6 @@ private class MidiPlayer(
     }
 }
 
-@ExperimentalTime
 private class PlayerControl(val midiPlayer: MidiPlayer) : Player, PlayerListener {
     private val playbackListeners = mutableSetOf<PlaybackListener>()
 
@@ -364,7 +359,6 @@ object PlaybackEngine {
         synthesizerPort = createDefaultSynthesizerPort()
     }
 
-    @ExperimentalTime
     fun createPlayer(filePath: String, initialFrom: Int?, initialTo: Int?): PlayerInitialState {
         val midiFile = openFile(filePath)
         val song = SongStructure.withClick(midiFile)

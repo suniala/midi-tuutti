@@ -7,10 +7,10 @@ import midituutti.midi.ChannelAdjustmentMessage
 import midituutti.midi.Tick
 import midituutti.midi.TimeSignature
 import midituutti.midi.openFile
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Test
 import java.io.InputStream
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class SongStructureTest {
     data class MeasureExpectation(val timeSignature: TimeSignature, val firstTick: Tick, val eventCount: Int)
