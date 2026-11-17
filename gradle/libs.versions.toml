@@ -3,6 +3,7 @@ kotlin = "2.4.21"
 coroutines = "1.11.0"
 javafx = "25.0.5"
 javafxPlugin = "0.1.0"
+jlinkPlugin = "4.1.1"
 junit = "6.1.3"
 javaMidiDecoder = "0.4.0"
 
@@ -17,3 +18,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 application = { id = "application" }
 javafx = { id = "org.openjfx.javafxplugin", version.ref = "javafxPlugin" }
+jlink = { id = "org.beryx.jlink", version.ref = "jlinkPlugin" }

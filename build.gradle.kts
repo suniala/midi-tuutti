@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.application)
     alias(libs.plugins.javafx)
+    alias(libs.plugins.jlink)
 }
 
 repositories {
@@ -40,4 +41,21 @@ tasks.compileJava {
 javafx {
     version = libs.versions.javafx.get()
     modules = listOf("javafx.controls", "javafx.graphics", "javafx.fxml")
+}
+
+jlink {
+    launcher {
+        name = "midi-tuutti"
+    }
+    addExtraDependencies("javafx")
+    forceMerge("java-midi-decoder")
+    forceMerge("kotlin")
+    val osName = System.getProperty("os.name").lowercase()
+    val zipName = when {
+        "linux" in osName -> "midi-tuutti-linux.zip"
+        "win" in osName -> "midi-tuutti-windows.zip"
+        "mac" in osName -> "midi-tuutti-macos.zip"
+        else -> throw GradleException("Unsupported operating system: $osName")
+    }
+    imageZip.set(layout.buildDirectory.file("image-zip/$zipName"))
 }
