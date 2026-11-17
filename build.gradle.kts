@@ -44,6 +44,7 @@ javafx {
 }
 
 jlink {
+    options = listOf("--strip-debug", "--no-man-pages", "--no-header-files")
     launcher {
         name = "midi-tuutti"
     }
@@ -58,4 +59,11 @@ jlink {
         else -> throw GradleException("Unsupported operating system: $osName")
     }
     imageZip.set(layout.buildDirectory.file("image-zip/$zipName"))
+}
+
+// jlink's --strip-debug does not remove native .debuginfo files (libjvm.debuginfo alone is ~700 MB)
+tasks.named("jlink") {
+    doLast {
+        delete(fileTree(layout.buildDirectory.dir("image")) { include("**/*.debuginfo") })
+    }
 }
