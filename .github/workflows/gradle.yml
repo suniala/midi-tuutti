@@ -3,6 +3,7 @@ name: Java CI with Gradle
 on:
   workflow_dispatch:
   push:
+  pull_request:
 
 env:
   TAG: ${{ github.ref_name }}
@@ -12,7 +13,8 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        os: [ubuntu, windows, macos]
+        # windows/macos legs only for PRs and release tags; plain branch pushes test ubuntu only
+        os: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')) && fromJSON('["ubuntu", "windows", "macos"]') || fromJSON('["ubuntu"]') }}
     runs-on: ${{ matrix.os }}-latest
 
     steps:
