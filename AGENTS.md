@@ -4,9 +4,10 @@ MIDI player (midi-tuutti). Kotlin + vanilla JavaFX.
 
 ## Build / verify
 
-- `./gradlew compileKotlin test` — compile + unit tests
+- Requires JDK 25 (e.g. `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`; the build auto-detects it as the toolchain). Gradle 9 cannot run on older JDKs.
+- First build after changing dependency versions must run online (`./gradlew compileKotlin test`), afterwards `--offline` works: `./gradlew compileKotlin test --offline` — compile + unit tests
 - `./gradlew run` — launch the UI (needs a display); pass a .mid file as arg to load it
-- `./gradlew jlink` — modular runtime image
+- `./gradlew jlink jlinkZip --offline` — modular runtime image (`build/image`) + zip (`build/image-zip`). Caveat: on the vboxsf share, jlink fails with EPERM writing legal files as non-root — build the image from a copy of the repo on local disk (e.g. /tmp) or run Gradle as root.
 
 ## UI conventions
 

@@ -13,8 +13,7 @@ import java.io.InputStream
 import javax.sound.midi.MidiSystem
 import javax.sound.midi.Receiver
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
-import kotlin.time.microseconds
+import kotlin.time.Duration.Companion.microseconds
 import javax.sound.midi.MidiMessage as JavaMidiMessage
 import javax.sound.midi.Sequence as MidiSequence
 import javax.sound.midi.ShortMessage as JavaShortMessage
@@ -52,7 +51,6 @@ data class Tick(val tick: Long) : Comparable<Tick> {
         return "$tick"
     }
 
-    @ExperimentalTime
     fun toDuration(resolution: Int, tempo: Tempo): Duration {
         val ticksPerSecond = resolution * (tempo.bpm / 60.0)
         val tickSize = 1.0 / ticksPerSecond

@@ -1,0 +1,69 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.application)
+    alias(libs.plugins.javafx)
+    alias(libs.plugins.jlink)
+}
+
+repositories {
+    mavenCentral()
+}
+
+defaultTasks("run")
+
+kotlin {
+    jvmToolchain(25)
+}
+
+dependencies {
+    implementation(libs.kotlin.stdlib)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.java.midi.decoder)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+application {
+    mainClass = "midituutti.MidiTuuttiKt"
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+tasks.compileJava {
+    // module-info.java is compiled by javac, but the exported packages live in the Kotlin output
+    val kotlinClasses = layout.buildDirectory.dir("classes/kotlin/main").get().asFile.absolutePath
+    options.compilerArgs.addAll(listOf("--patch-module", "midituutti=$kotlinClasses"))
+}
+
+javafx {
+    version = libs.versions.javafx.get()
+    modules = listOf("javafx.controls", "javafx.graphics", "javafx.fxml")
+}
+
+jlink {
+    options = listOf("--strip-debug", "--no-man-pages", "--no-header-files")
+    launcher {
+        name = "midi-tuutti"
+    }
+    addExtraDependencies("javafx")
+    forceMerge("java-midi-decoder")
+    forceMerge("kotlin")
+    val osName = System.getProperty("os.name").lowercase()
+    val zipName = when {
+        "linux" in osName -> "midi-tuutti-linux.zip"
+        "win" in osName -> "midi-tuutti-windows.zip"
+        "mac" in osName -> "midi-tuutti-macos.zip"
+        else -> throw GradleException("Unsupported operating system: $osName")
+    }
+    imageZip.set(layout.buildDirectory.file("image-zip/$zipName"))
+}
+
+// jlink's --strip-debug does not remove native .debuginfo files (libjvm.debuginfo alone is ~700 MB)
+tasks.named("jlink") {
+    doLast {
+        delete(fileTree(layout.buildDirectory.dir("image")) { include("**/*.debuginfo") })
+    }
+}

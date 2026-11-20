@@ -68,7 +68,7 @@ See [Java Sound API: Soundbanks](https://www.oracle.com/technetwork/java/soundba
 * Skip empty measures (ones without any notes) at the beginning of a song
 
 ## Development
-Requires Java 11 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/) and [java-midi-decoder](https://github.com/suniala/java-midi-decoder).
+Requires JDK 25 (OpenJDK works), uses [Kotlin](https://kotlinlang.org/) and [java-midi-decoder](https://github.com/suniala/java-midi-decoder). The Gradle wrapper is 9.x and the build uses the Kotlin DSL with a toolchain, so a JDK 25 must be installed (Gradle auto-detects `/usr/lib/jvm/java-25-openjdk-amd64` on Linux).
 
 Start with: `./gradlew run`.
 
@@ -77,9 +77,9 @@ Enable engine trace logging with: `-Dmidituutti.engine.trace=true`
 Build a jar with: `./gradlew build`
 
 ## Running the JAR
-You need to have JDK 11 and OpenJFX installed. Run with:
+You need to have JDK 25 and OpenJFX 25 installed. Run with:
 ```
-# Example for Ubuntu 18.04
+# Example for Ubuntu with openjfx installed
 java \
   --module-path /usr/share/openjfx/lib \
   --add-modules=javafx.base,javafx.controls,javafx.graphics \

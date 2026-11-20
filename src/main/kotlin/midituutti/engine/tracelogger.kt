@@ -1,7 +1,9 @@
 package midituutti.engine
 
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -11,16 +13,13 @@ import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
 
-@ExperimentalTime
 private data class LogMessage(
     val ticks: Tick, val timestamp: Duration, val actualDeltaTs: Duration?, val expectedDeltaTs: Duration?,
     val expectedTs: Duration, val midiMessage: MidiMessage?, val measure: Int
 )
 
-@ExperimentalTime
 private object RowFormatter {
     fun heading(): String = arrayOf(
         "ticks",
@@ -35,7 +34,7 @@ private object RowFormatter {
     ).joinToString(";")
 
     fun row(logMessage: LogMessage): String = logMessage.run {
-        arrayOf(
+        arrayOf<Any>(
             "$ticks",
             formatTimeToMs(timestamp),
             formatTimeToMs(expectedTs),
@@ -49,15 +48,15 @@ private object RowFormatter {
     }
 
     private fun formatTimeToMs(time: Duration?): String =
-        String.format("%.3f", (time ?: Duration.ZERO).inMilliseconds)
+        String.format("%.3f", (time ?: Duration.ZERO).inWholeMicroseconds / 1000.0)
 }
 
-@ExperimentalTime
 object EngineTraceLogger {
     private val traceEnabled = System.getProperty("midituutti.engine.trace") == "true"
     private val queue = LinkedBlockingQueue<LogMessage>(1000 * 1000)
     private var previous: LogMessage? = null
     private var flushJob: Job? = null
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     fun trace(
         playStartMark: TimeMark, expectedTimestampTs: Duration, ticks: Tick, expectedDeltaTs: Duration?,
@@ -82,7 +81,7 @@ object EngineTraceLogger {
         if (traceEnabled) {
             flushRows(sequenceOf(RowFormatter.heading()), outputPath)
 
-            flushJob = GlobalScope.launch {
+            flushJob = coroutineScope.launch {
                 while (isActive) {
                     delay(1000)
                     flush(outputPath)
