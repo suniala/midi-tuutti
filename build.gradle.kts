@@ -43,6 +43,10 @@ fun Test.configureHeadlessUiTest(updateScreenshots: Boolean) {
     systemProperty("monocle.platform", "Headless")
     systemProperty("java.awt.headless", "true")
     systemProperty("midituutti.updateScreenshots", updateScreenshots.toString())
+    // -PexcludeUiTests: CI matrix legs run engine tests only; UI screenshot tests run in the ui-test job
+    if (project.hasProperty("excludeUiTests")) {
+        filter { excludeTestsMatching("midituutti.ui.*") }
+    }
 }
 
 tasks.test {

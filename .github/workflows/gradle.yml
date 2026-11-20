@@ -28,8 +28,40 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # UI screenshot tests run only in the ui-test job below (goldens are generated on a dev machine)
       - name: Test with Gradle
-        run: ./gradlew test
+        run: ./gradlew test -PexcludeUiTests
+
+  ui-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          architecture: x64
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Headless Monocle, no display needed. Pixel-perfect against goldens in
+      # src/test/resources/midituutti/ui/screenshots (regenerate locally with ./gradlew updateScreenshots).
+      - name: UI tests
+        run: ./gradlew test --tests "midituutti.ui.*"
+
+      - name: Upload screenshot diffs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ui-screenshot-failures
+          path: |
+            build/screenshots-failures/
+            build/test-results/test/
+          if-no-files-found: ignore
 
   build:
     needs: test
