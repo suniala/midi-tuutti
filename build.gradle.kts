@@ -21,6 +21,9 @@ dependencies {
     implementation(libs.java.midi.decoder)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.testfx.core)
+    testImplementation(libs.testfx.junit5)
+    testImplementation(libs.openjfx.monocle)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -28,8 +31,32 @@ application {
     mainClass = "midituutti.MidiTuuttiKt"
 }
 
-tasks.test {
+// Headless JavaFX (Monocle + software pipeline) so UI tests run without a display.
+// prism.text=t2k forces the pure-Java text rasterizer for deterministic glyphs.
+fun Test.configureHeadlessUiTest(updateScreenshots: Boolean) {
     useJUnitPlatform()
+    systemProperty("testfx.headless", "true")
+    systemProperty("testfx.robot", "glass")
+    systemProperty("prism.order", "sw")
+    systemProperty("prism.text", "t2k")
+    systemProperty("glass.platform", "Monocle")
+    systemProperty("monocle.platform", "Headless")
+    systemProperty("java.awt.headless", "true")
+    systemProperty("midituutti.updateScreenshots", updateScreenshots.toString())
+}
+
+tasks.test {
+    configureHeadlessUiTest(updateScreenshots = System.getProperty("midituutti.updateScreenshots") == "true")
+}
+
+// ./gradlew updateScreenshots — capture golden screenshots instead of asserting on them
+val updateScreenshots = tasks.register<Test>("updateScreenshots") {
+    group = "verification"
+    description = "Runs the UI tests in update mode: (re)creates the golden screenshots under src/test/resources."
+    testClassesDirs = sourceSets.named("test").get().output.classesDirs
+    classpath = sourceSets.named("test").get().runtimeClasspath
+    configureHeadlessUiTest(updateScreenshots = true)
+    shouldRunAfter(tasks.test)
 }
 
 tasks.compileJava {

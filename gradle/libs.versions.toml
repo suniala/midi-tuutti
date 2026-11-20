@@ -4,15 +4,21 @@ coroutines = "1.11.0"
 javafx = "25.0.5"
 javafxPlugin = "0.1.0"
 jlinkPlugin = "4.1.1"
-junit = "6.1.3"
+junitJupiter = "5.14.4"
+junitPlatform = "1.14.4"
+testfx = "4.0.18"
+monocle = "21.0.2"
 javaMidiDecoder = "0.4.0"
 
 [libraries]
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 java-midi-decoder = { module = "io.github.suniala:java-midi-decoder", version.ref = "javaMidiDecoder" }
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatform" }
+testfx-core = { module = "org.testfx:testfx-core", version.ref = "testfx" }
+testfx-junit5 = { module = "org.testfx:testfx-junit5", version.ref = "testfx" }
+openjfx-monocle = { module = "org.testfx:openjfx-monocle", version.ref = "monocle" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
