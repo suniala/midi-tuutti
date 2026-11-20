@@ -42,6 +42,8 @@ fun Test.configureHeadlessUiTest(updateScreenshots: Boolean) {
     systemProperty("glass.platform", "Monocle")
     systemProperty("monocle.platform", "Headless")
     systemProperty("java.awt.headless", "true")
+    // no sound device in headless environments; the engine then uses a no-op MIDI receiver
+    systemProperty("midituutti.noAudio", "true")
     systemProperty("midituutti.updateScreenshots", updateScreenshots.toString())
     // -PexcludeUiTests: CI matrix legs run engine tests only; UI screenshot tests run in the ui-test job
     if (project.hasProperty("excludeUiTests")) {

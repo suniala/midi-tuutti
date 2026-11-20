@@ -174,7 +174,18 @@ fun openFile(file: File): MidiFile = MidiFile(MidiSystem.getSequence(file))
 
 fun openFile(stream: InputStream): MidiFile = MidiFile(MidiSystem.getSequence(stream))
 
+/** Discards all MIDI messages; for environments without an audio device (headless CI, tests). */
+private class NoOpReceiver : Receiver {
+    override fun send(message: JavaMidiMessage, timeStamp: Long) {}
+    override fun close() {}
+}
+
 fun createDefaultSynthesizerPort(): MidiPort {
+    // Opening the default synthesizer requires an audio output line, which headless
+    // machines don't have. Tests set -Dmidituutti.noAudio=true and don't need sound.
+    if (System.getProperty("midituutti.noAudio") == "true") {
+        return MidiPort(NoOpReceiver())
+    }
     val synthesizer = MidiSystem.getSynthesizer()
     synthesizer.open()
 
